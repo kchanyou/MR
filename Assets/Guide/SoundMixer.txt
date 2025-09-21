@@ -1,0 +1,60 @@
+Unity AudioMixer 및 이퀄라이저 설정 방법
+SoundManager가 제대로 작동하려면 Unity 에디터에서 AudioMixer를 설정해야 합니다.
+
+1. AudioMixer 생성
+Project 창에서 마우스 오른쪽 버튼 클릭 -> Create -> Audio Mixer를 선택하여 새 Audio Mixer를 생성합니다. 이름은 MainMixer로 지정합니다.
+
+Window -> Audio -> Audio Mixer를 선택하여 Audio Mixer 창을 엽니다.
+
+2. Mixer Groups 생성
+Audio Mixer 창의 Groups 섹션에서 Master를 선택하고 + 버튼을 누릅니다.
+
+새 그룹의 이름을 BGM으로 변경합니다.
+
+다시 Master를 선택하고 + 버튼을 눌러 SFX라는 이름의 그룹을 만듭니다.
+
+3. SFX 그룹에 이퀄라이저(EQ) 추가
+SFX 그룹을 선택합니다.
+
+Inspector 창 하단의 Add Effect 버튼을 클릭하고 Parametric EQ를 선택합니다.
+
+4. EQ 파라미터 노출 (Expose to Script)
+Parametric EQ 이펙트에서 세 개의 주파수 밴드(A, B, C)의 Gain 값을 스크립트에서 제어할 수 있도록 설정해야 합니다.
+
+Frequency A (저음역대) Gain: Gain이라고 표시된 값(0 dB) 위에서 마우스 오른쪽 버튼 클릭 -> Expose 'Gain (of Frequency A)' to script를 선택합니다.
+
+Frequency B (중음역대) Gain: 동일하게 Gain 위에서 마우스 오른쪽 버튼 클릭 -> Expose.
+
+Frequency C (고음역대) Gain: 동일하게 Gain 위에서 마우스 오른쪽 버튼 클릭 -> Expose.
+
+Audio Mixer 창 오른쪽 상단의 Exposed Parameters 드롭다운을 클릭하면 방금 노출한 3개의 파라미터가 보입니다.
+
+각 파라미터 이름을 스크립트에서 사용할 이름으로 변경합니다.
+
+MyExposedParam -> SFX_LowGain
+
+MyExposedParam 1 -> SFX_MidGain
+
+MyExposedParam 2 -> SFX_HighGain
+
+※ 중요: 이 이름은 SoundManager.cs 코드의 mainMixer.SetFloat() 함수에 사용된 문자열과 정확히 일치해야 합니다.
+
+[Image showing how to expose an EQ parameter to a script in Unity]
+
+5. 볼륨 파라미터 노출
+BGM 그룹을 선택하고, Inspector에서 Volume 위에서 마우스 오른쪽 버튼 클릭 -> Expose.
+
+SFX 그룹도 동일하게 Volume을 Expose 합니다.
+
+Exposed Parameters 목록에서 이름을 각각 BGM_Volume, SFX_Volume으로 변경합니다.
+
+6. Managers 오브젝트에 연결
+Hierarchy의 Managers 오브젝트를 선택합니다.
+
+Sound Manager 컴포넌트의 Main Mixer 필드에 Project 창의 MainMixer 에셋을 드래그 앤 드롭합니다.
+
+Bgm Group과 Sfx Group 필드에도 Audio Mixer 창에서 만든 BGM, SFX 그룹을 각각 드래그 앤 드롭합니다.
+
+이제 모든 설정이 완료되었습니다. SoundManager는 사용자의 캘리브레이션 값에 따라 효과음의 특정 주파수 대역을 증폭시키고, HapticManager는 플랫폼에 맞는 고품질 진동을 제공할 것입니다.
+
+이제 훨씬 더 전문적인 기반 시스템이 구축되었습니다. 이 강화된 매니저들을 바탕으로, 다음 단계인 '타이틀 씬'과 '주파수 캘리브레이션' 기능 개발을 시작하면 되겠습니다. 준비되시면 말씀해주세요!

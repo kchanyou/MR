@@ -1,0 +1,28 @@
+'USE_NICE_VIBRATIONS' 심볼 설정 방법
+이 설정을 통해 코드 수정 없이 iOS의 고급 햅틱 기능을 켜고 끌 수 있습니다.
+
+1. 프로젝트 설정 열기
+Unity 에디터 상단 메뉴에서 Edit -> Project Settings...를 선택합니다.
+
+왼쪽 목록에서 Player를 선택합니다.
+
+Other Settings 탭을 펼칩니다.
+
+2. Scripting Define Symbols 설정
+Configuration 섹션까지 스크롤을 내리면 Scripting Define Symbols 라는 입력 필드가 있습니다.
+
+이 필드는 현재 빌드 타겟(PC, Android, iOS 등)에 따라 다르게 보입니다. Android와 iOS 타겟 모두에 대해 설정해주는 것이 좋습니다.
+
+상황 A: 지금처럼 Windows에서 개발할 때 (기능 끄기)
+Scripting Define Symbols 필드를 비워두거나, USE_NICE_VIBRATIONS가 없도록 합니다. (기본값)
+
+상황 B: 나중에 Mac에서 'Nice Vibrations'를 사용할 때 (기능 켜기)
+Nice Vibrations 에셋을 프로젝트에 임포합니다.
+
+Scripting Define Symbols 필드에 USE_NICE_VIBRATIONS를 입력합니다.
+
+만약 다른 심볼이 이미 있다면, 세미콜론(;)으로 구분하여 맨 뒤에 추가합니다. (예: EXISTING_SYMBOL;USE_NICE_VIBRATIONS)
+
+입력 후 Enter 키를 누르고, 잠시 후 스크립트가 재컴파일되면 적용됩니다.
+
+이제 이 스위처블(switchable) HapticManager를 사용하시면 됩니다. 현재 윈도우 환경에서는 아무 문제 없이 안드로이드 개발과 PC 디버깅을 진행하시고, 나중에 Mac으로 옮겨서 Nice Vibrations 에셋을 추가하고 심볼만 정의해주면 바로 iOS의 탭틱 엔진을 활용할 수 있습니다.
