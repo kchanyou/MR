@@ -1,65 +1,434 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
+using System.Collections;
 
-// 스테이지 노드의 3가지 상태를 정의합니다.
-public enum NodeState { Locked, Unlocked, Cleared }
-
+/// <summary>
+/// 개선된 스테이지 노드 - 업적 표시 및 상세 정보 포함
+/// </summary>
 public class StageNode : MonoBehaviour
 {
-    [Header("UI References")]
-    public Button stageButton;          // 클릭 가능한 버튼 컴포넌트
-    public TextMeshProUGUI stageNumberText; // 스테이지 번호를 표시할 텍스트
-    public GameObject lockedIcon;       // 잠금 상태일 때 표시될 아이콘 (자물쇠 이미지 등)
-    public GameObject clearedIcon;      // 클리어 상태일 때 표시될 아이콘 (체크마크, 별 이미지 등)
+    [Header("UI 컴포넌트")]
+    [SerializeField] private Button nodeButton;
+    [SerializeField] private Image nodeBackground;
+    [SerializeField] private Image stageIcon;
+    [SerializeField] private Text stageNumberText;
+    [SerializeField] private Text stageNameText;
+    [SerializeField] private Image difficultyStars;
+    [SerializeField] private Slider progressSlider;
 
+    [Header("상태 표시")]
+    [SerializeField] private GameObject lockedOverlay;
+    [SerializeField] private GameObject clearStamp;
+    [SerializeField] private Image achievementBadge;
+    [SerializeField] private Text bestScoreText;
+
+    [Header("색상 설정")]
+    [SerializeField] private Color lockedColor = Color.gray;
+    [SerializeField] private Color unlockedColor = Color.white;
+    [SerializeField] private Color clearedColor = Color.green;
+    [SerializeField] private Color currentColor = Color.yellow;
+
+    // 스테이지 정보
+    private StageMapManager stageMapManager;
     private int stageIndex;
-    private StageMapManager manager;
+    private NodeState nodeState;
+    private LevelData stageData;
+    private bool hasAchievement = false;
 
     /// <summary>
-    /// StageMapManager가 노드를 생성할 때 호출하여 초기화하는 함수
+    /// 스테이지 노드를 초기화합니다.
     /// </summary>
-    public void Setup(StageMapManager mapManager, int index, NodeState state)
+    public void Setup(StageMapManager manager, int index, NodeState state)
     {
-        manager = mapManager;
+        stageMapManager = manager;
         stageIndex = index;
-        stageNumberText.text = (stageIndex + 1).ToString();
+        nodeState = state;
 
-        // 노드의 상태에 따라 UI를 설정합니다.
-        switch (state)
+        LoadStageData();
+        UpdateNodeVisuals();
+        SetupButton();
+
+        Debug.Log($"StageNode {index} 설정 완료: {state}");
+    }
+
+    /// <summary>
+    /// 스테이지 데이터를 로드합니다.
+    /// </summary>
+    private void LoadStageData()
+    {
+        // StageMapManager를 통해 스테이지 데이터 가져오기
+        string currentGameType = GameManager.CurrentGameType;
+
+        if (!string.IsNullOrEmpty(currentGameType))
+        {
+            stageData = GetStageDataFromContainer(currentGameType, stageIndex);
+
+            if (stageData != null)
+            {
+                // 업적 달성 여부 확인
+                CheckAchievementStatus(currentGameType, stageIndex);
+            }
+        }
+    }
+
+    private LevelData GetStageDataFromContainer(string gameType, int index)
+    {
+        try
+        {
+            TextAsset gameDataFile = Resources.Load<TextAsset>("LevelData/GameDataContainer");
+            if (gameDataFile != null)
+            {
+                GameDataContainer container = JsonUtility.FromJson<GameDataContainer>(gameDataFile.text);
+                GameModeCollection collection = container?.GetCharacterModes(gameType);
+
+                if (collection != null)
+                {
+                    bool isFirstMode = index < 8;
+                    int adjustedIndex = index % 8;
+                    GameModeType modeType = GetGameModeType(gameType, isFirstMode);
+
+                    return collection.GetStage(modeType, adjustedIndex);
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"스테이지 데이터 로드 실패: {e.Message}");
+        }
+
+        return null;
+    }
+
+    private GameModeType GetGameModeType(string gameType, bool isFirstMode)
+    {
+        switch (gameType)
+        {
+            case "Dolphin":
+                return isFirstMode ? GameModeType.Dolphin_DifferentSound : GameModeType.Dolphin_MelodyShape;
+            case "Penguin":
+                return isFirstMode ? GameModeType.Penguin_RhythmJump : GameModeType.Penguin_RhythmFollow;
+            case "Otamatone":
+                return isFirstMode ? GameModeType.Otamatone_DifferentInstrument : GameModeType.Otamatone_InstrumentMatch;
+            default:
+                return GameModeType.Dolphin_DifferentSound;
+        }
+    }
+
+    private void CheckAchievementStatus(string gameType, int index)
+    {
+        if (DataManager.Instance != null)
+        {
+            bool isFirstMode = index < 8;
+            int adjustedIndex = index % 8;
+            string modeTypeStr = isFirstMode ? "Mode1" : "Mode2";
+
+            hasAchievement = DataManager.Instance.IsAchievementUnlocked(gameType, modeTypeStr, adjustedIndex);
+        }
+    }
+
+    /// <summary>
+    /// 노드의 시각적 요소를 업데이트합니다.
+    /// </summary>
+    private void UpdateNodeVisuals()
+    {
+        // 기본 정보 표시
+        UpdateBasicInfo();
+
+        // 상태별 시각적 업데이트
+        UpdateStateVisuals();
+
+        // 진행도 정보 표시
+        UpdateProgressInfo();
+
+        // 업적 배지 표시
+        UpdateAchievementBadge();
+    }
+
+    private void UpdateBasicInfo()
+    {
+        // 스테이지 번호
+        if (stageNumberText != null)
+        {
+            stageNumberText.text = (stageIndex + 1).ToString();
+        }
+
+        // 스테이지 이름
+        if (stageNameText != null && stageData != null)
+        {
+            stageNameText.text = stageData.stageName;
+        }
+
+        // 스테이지 아이콘
+        if (stageIcon != null && stageData != null)
+        {
+            // 게임 모드에 따른 아이콘 설정
+            UpdateStageIcon();
+        }
+
+        // 난이도 표시
+        if (difficultyStars != null && stageData != null)
+        {
+            UpdateDifficultyDisplay();
+        }
+    }
+
+    private void UpdateStageIcon()
+    {
+        if (stageIcon == null || stageData == null) return;
+
+        // 게임 모드별 아이콘 색상 설정
+        Color iconColor = Color.white;
+
+        switch (stageData.primaryGameMode)
+        {
+            case GameModeType.Dolphin_DifferentSound:
+            case GameModeType.Dolphin_MelodyShape:
+                iconColor = new Color(0.2f, 0.7f, 1.0f); // 파란색
+                break;
+            case GameModeType.Penguin_RhythmJump:
+            case GameModeType.Penguin_RhythmFollow:
+                iconColor = new Color(0.9f, 0.9f, 1.0f); // 하얀색
+                break;
+            case GameModeType.Otamatone_DifferentInstrument:
+            case GameModeType.Otamatone_InstrumentMatch:
+                iconColor = new Color(1.0f, 0.6f, 0.2f); // 주황색
+                break;
+        }
+
+        stageIcon.color = iconColor;
+    }
+
+    private void UpdateDifficultyDisplay()
+    {
+        if (difficultyStars == null || stageData == null) return;
+
+        // 스테이지 인덱스를 기반으로 난이도 계산
+        int adjustedIndex = stageIndex % 8;
+        float difficulty = 1.0f + (adjustedIndex * 0.5f); // 1.0 ~ 4.5
+
+        // 별 5개 중 몇 개를 채울지 계산
+        float fillAmount = difficulty / 5.0f;
+        difficultyStars.fillAmount = fillAmount;
+    }
+
+    private void UpdateStateVisuals()
+    {
+        Color backgroundColor = unlockedColor;
+        bool isInteractable = true;
+
+        switch (nodeState)
         {
             case NodeState.Locked:
-                stageButton.interactable = false; // 버튼 비활성화
-                lockedIcon.SetActive(true);
-                clearedIcon.SetActive(false);
+                backgroundColor = lockedColor;
+                isInteractable = false;
+                if (lockedOverlay != null) lockedOverlay.SetActive(true);
+                if (clearStamp != null) clearStamp.SetActive(false);
                 break;
+
             case NodeState.Unlocked:
-                stageButton.interactable = true;  // 버튼 활성화
-                lockedIcon.SetActive(false);
-                clearedIcon.SetActive(false);
+                backgroundColor = unlockedColor;
+                isInteractable = true;
+                if (lockedOverlay != null) lockedOverlay.SetActive(false);
+                if (clearStamp != null) clearStamp.SetActive(false);
                 break;
+
             case NodeState.Cleared:
-                stageButton.interactable = true;  // 버튼 활성화 (다시 플레이 가능)
-                lockedIcon.SetActive(false);
-                clearedIcon.SetActive(true);
+                backgroundColor = clearedColor;
+                isInteractable = true;
+                if (lockedOverlay != null) lockedOverlay.SetActive(false);
+                if (clearStamp != null) clearStamp.SetActive(true);
                 break;
         }
-    }
 
-    void Start()
-    {
-        // 버튼이 클릭되었을 때 StageMapManager에게 알리도록 리스너를 추가합니다.
-        stageButton.onClick.AddListener(OnNodeClicked);
-    }
-
-    private void OnNodeClicked()
-    {
-        // Haptic 피드백을 먼저 주고
-        if (HapticManager.Instance != null)
+        // 배경 색상 적용
+        if (nodeBackground != null)
         {
-            HapticManager.Instance.VibrateLight();
+            nodeBackground.color = backgroundColor;
         }
-        // 매니저에게 몇 번째 스테이지가 선택되었는지 알립니다.
-        manager.OnStageSelected(stageIndex);
+
+        // 버튼 상호작용 설정
+        if (nodeButton != null)
+        {
+            nodeButton.interactable = isInteractable;
+        }
     }
+
+    private void UpdateProgressInfo()
+    {
+        if (DataManager.Instance == null) return;
+
+        string gameType = GameManager.CurrentGameType;
+        bool isFirstMode = stageIndex < 8;
+        int adjustedIndex = stageIndex % 8;
+        string modeTypeStr = isFirstMode ? "Mode1" : "Mode2";
+
+        StageProgress progress = DataManager.Instance.GetStageProgress(gameType, modeTypeStr, adjustedIndex);
+
+        // 최고 점수 표시
+        if (bestScoreText != null)
+        {
+            if (progress.bestScore > 0)
+            {
+                bestScoreText.text = $"최고: {progress.bestScore}점";
+                bestScoreText.gameObject.SetActive(true);
+            }
+            else
+            {
+                bestScoreText.gameObject.SetActive(false);
+            }
+        }
+
+        // 진행도 슬라이더
+        if (progressSlider != null && stageData != null)
+        {
+            if (progress.bestScore > 0)
+            {
+                float progressValue = (float)progress.bestScore / (float)stageData.targetScore;
+                progressSlider.value = Mathf.Clamp01(progressValue);
+                progressSlider.gameObject.SetActive(true);
+            }
+            else
+            {
+                progressSlider.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private void UpdateAchievementBadge()
+    {
+        if (achievementBadge != null)
+        {
+            achievementBadge.gameObject.SetActive(hasAchievement);
+
+            if (hasAchievement)
+            {
+                // 업적 배지 반짝임 효과
+                StartCoroutine(AchievementBadgeGlow());
+            }
+        }
+    }
+
+    private IEnumerator AchievementBadgeGlow()
+    {
+        if (achievementBadge == null) yield break;
+
+        Color originalColor = achievementBadge.color;
+        float glowDuration = 2.0f;
+
+        while (hasAchievement && achievementBadge.gameObject.activeInHierarchy)
+        {
+            // 페이드 인
+            for (float t = 0; t < glowDuration / 2; t += Time.deltaTime)
+            {
+                float alpha = Mathf.Lerp(0.6f, 1.0f, t / (glowDuration / 2));
+                achievementBadge.color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+                yield return null;
+            }
+
+            // 페이드 아웃
+            for (float t = 0; t < glowDuration / 2; t += Time.deltaTime)
+            {
+                float alpha = Mathf.Lerp(1.0f, 0.6f, t / (glowDuration / 2));
+                achievementBadge.color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+                yield return null;
+            }
+        }
+    }
+
+    private void SetupButton()
+    {
+        if (nodeButton != null)
+        {
+            nodeButton.onClick.RemoveAllListeners();
+            nodeButton.onClick.AddListener(OnNodeClicked);
+        }
+    }
+
+    /// <summary>
+    /// 스테이지 노드 클릭 시 호출되는 함수
+    /// </summary>
+    public void OnNodeClicked()
+    {
+        if (nodeState == NodeState.Locked)
+        {
+            // 잠긴 스테이지 클릭 시 알림
+            ShowLockedStageMessage();
+            return;
+        }
+
+        // 클릭 효과
+        StartCoroutine(ClickEffect());
+
+        // 스테이지 선택 처리
+        stageMapManager?.OnStageSelected(stageIndex);
+    }
+
+    private void ShowLockedStageMessage()
+    {
+        // TODO: 잠긴 스테이지 알림 UI 표시
+        Debug.Log("이 스테이지는 아직 잠겨있습니다!");
+    }
+
+    private IEnumerator ClickEffect()
+    {
+        if (nodeBackground == null) yield break;
+
+        Vector3 originalScale = transform.localScale;
+        Color originalColor = nodeBackground.color;
+
+        // 스케일 애니메이션
+        for (float t = 0; t < 0.1f; t += Time.deltaTime)
+        {
+            float scale = Mathf.Lerp(1.0f, 1.1f, t / 0.1f);
+            transform.localScale = originalScale * scale;
+            yield return null;
+        }
+
+        for (float t = 0; t < 0.1f; t += Time.deltaTime)
+        {
+            float scale = Mathf.Lerp(1.1f, 1.0f, t / 0.1f);
+            transform.localScale = originalScale * scale;
+            yield return null;
+        }
+
+        transform.localScale = originalScale;
+    }
+
+    /// <summary>
+    /// 노드 정보를 업데이트합니다 (외부에서 호출)
+    /// </summary>
+    public void RefreshNode()
+    {
+        LoadStageData();
+        UpdateNodeVisuals();
+    }
+
+    /// <summary>
+    /// 업적 달성 시 호출되는 함수
+    /// </summary>
+    public void OnAchievementUnlocked()
+    {
+        hasAchievement = true;
+        UpdateAchievementBadge();
+
+        // 업적 달성 파티클 효과
+        StartCoroutine(AchievementUnlockEffect());
+    }
+
+    private IEnumerator AchievementUnlockEffect()
+    {
+        // TODO: 파티클 시스템이나 기타 시각적 효과 구현
+        Debug.Log($"스테이지 {stageIndex + 1} 업적 달성!");
+        yield return null;
+    }
+}
+
+/// <summary>
+/// 노드 상태 열거형
+/// </summary>
+public enum NodeState
+{
+    Locked,      // 잠김
+    Unlocked,    // 해금됨
+    Cleared      // 클리어됨
 }

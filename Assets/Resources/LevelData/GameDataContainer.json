@@ -1,0 +1,484 @@
+{
+  "dolphinModes": {
+    "characterType": "Dolphin",
+    "displayName": "돌고래 친구",
+    "description": "돌고래와 함께 소리의 세계를 탐험해요",
+    "mode1Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "기초 음정 구별",
+        "isBossStage": false,
+        "primaryGameMode": "Dolphin_DifferentSound",
+        "characterName": "Dolphin",
+        "characterMentAudio": "dolphin_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "완전5도 마스터 메달",
+        "achievementItemIcon": "medal_perfect_fifth",
+        "baseFrequency": 440.0,
+        "frequencyRange": 2000.0,
+        "stageThemeColor": {"r": 0.2, "g": 0.7, "b": 1.0, "a": 1.0},
+        "backgroundImageName": "dolphin_ocean_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "도-도-솔 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["C4", "C4", "G4"],
+            "frequencies": [261.63, 261.63, 392.00],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 1,
+            "questionDescription": "파-파-도 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["F4", "F4", "C5"],
+            "frequencies": [349.23, 349.23, 523.25],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 2,
+            "questionDescription": "솔-솔-레 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["G4", "G4", "D5"],
+            "frequencies": [392.00, 392.00, 587.33],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 3,
+            "questionDescription": "라-라-미 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["A4", "A4", "E5"],
+            "frequencies": [440.00, 440.00, 659.25],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 4,
+            "questionDescription": "미-미-시 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["E4", "E4", "B4"],
+            "frequencies": [329.63, 329.63, 493.88],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 5,
+            "questionDescription": "도-도-솔 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["C4", "C4", "G4"],
+            "frequencies": [261.63, 261.63, 392.00],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 6,
+            "questionDescription": "파-파-도 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["F4", "F4", "C5"],
+            "frequencies": [349.23, 349.23, 523.25],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 7,
+            "questionDescription": "솔-솔-레 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["G4", "G4", "D5"],
+            "frequencies": [392.00, 392.00, 587.33],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 8,
+            "questionDescription": "라-라-미 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["A4", "A4", "E5"],
+            "frequencies": [440.00, 440.00, 659.25],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 9,
+            "questionDescription": "미-미-시 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["E4", "E4", "B4"],
+            "frequencies": [329.63, 329.63, 493.88],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          }
+        ]
+      },
+      {
+        "stageIndex": 1,
+        "stageName": "장3도 구별",
+        "isBossStage": false,
+        "primaryGameMode": "Dolphin_DifferentSound",
+        "characterName": "Dolphin",
+        "characterMentAudio": "dolphin_stage2_intro",
+        "targetScore": 80,
+        "achievementItemName": "장3도 전문가 메달",
+        "achievementItemIcon": "medal_major_third",
+        "baseFrequency": 440.0,
+        "frequencyRange": 2000.0,
+        "stageThemeColor": {"r": 0.2, "g": 0.7, "b": 1.0, "a": 1.0},
+        "backgroundImageName": "dolphin_ocean_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "도-도-미 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["C4", "C4", "E4"],
+            "frequencies": [261.63, 261.63, 329.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 1,
+            "questionDescription": "파-파-라 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["F4", "F4", "A4"],
+            "frequencies": [349.23, 349.23, 440.00],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 2,
+            "questionDescription": "솔-솔-시 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["G4", "G4", "B4"],
+            "frequencies": [392.00, 392.00, 493.88],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 3,
+            "questionDescription": "레-레-파# 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["D4", "D4", "Fs4"],
+            "frequencies": [293.66, 293.66, 369.99],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 4,
+            "questionDescription": "라-라-도# 중에서 다른 소리를 찾아주세요",
+            "audioClipNames": ["A4", "A4", "Cs5"],
+            "frequencies": [440.00, 440.00, 554.37],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 5,
+            "questionDescription": "도-도-미 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["C4", "C4", "E4"],
+            "frequencies": [261.63, 261.63, 329.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 6,
+            "questionDescription": "파-파-라 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["F4", "F4", "A4"],
+            "frequencies": [349.23, 349.23, 440.00],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 7,
+            "questionDescription": "솔-솔-시 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["G4", "G4", "B4"],
+            "frequencies": [392.00, 392.00, 493.88],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 8,
+            "questionDescription": "레-레-파# 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["D4", "D4", "Fs4"],
+            "frequencies": [293.66, 293.66, 369.99],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          },
+          {
+            "questionIndex": 9,
+            "questionDescription": "라-라-도# 중에서 다른 소리를 찾아주세요 (다시)",
+            "audioClipNames": ["A4", "A4", "Cs5"],
+            "frequencies": [440.00, 440.00, 554.37],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 0.3, "g": 0.8, "b": 1.0, "a": 0.8}
+          }
+        ]
+      }
+    ],
+    "mode2Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "단순 상승/하강",
+        "isBossStage": false,
+        "primaryGameMode": "Dolphin_MelodyShape",
+        "characterName": "Dolphin",
+        "characterMentAudio": "dolphin_melody_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "멜로디 방향 감지사",
+        "achievementItemIcon": "medal_melody_direction",
+        "baseFrequency": 440.0,
+        "frequencyRange": 2000.0,
+        "stageThemeColor": {"r": 0.1, "g": 0.6, "b": 0.9, "a": 1.0},
+        "backgroundImageName": "dolphin_melody_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "도-레-미 멜로디 방향을 선택하세요",
+            "audioClipNames": ["melody_C_D_E"],
+            "frequencies": [261.63, 293.66, 329.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 0,
+            "rhythmTiming": [0.0, 0.5, 1.0],
+            "bpm": 120,
+            "buttonCount": 2,
+            "highlightColor": {"r": 0.2, "g": 0.9, "b": 0.7, "a": 0.8}
+          },
+          {
+            "questionIndex": 1,
+            "questionDescription": "솔-파-미 멜로디 방향을 선택하세요",
+            "audioClipNames": ["melody_G_F_E"],
+            "frequencies": [392.00, 349.23, 329.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 1,
+            "rhythmTiming": [0.0, 0.5, 1.0],
+            "bpm": 120,
+            "buttonCount": 2,
+            "highlightColor": {"r": 0.2, "g": 0.9, "b": 0.7, "a": 0.8}
+          }
+        ]
+      }
+    ]
+  },
+  "penguinModes": {
+    "characterType": "Penguin",
+    "displayName": "펭귄 친구",
+    "description": "펭귄과 함께 리듬의 즐거움을 느껴보세요",
+    "mode1Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "기본 4박자",
+        "isBossStage": false,
+        "primaryGameMode": "Penguin_RhythmJump",
+        "characterName": "Penguin",
+        "characterMentAudio": "penguin_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "정박 마스터 뱃지",
+        "achievementItemIcon": "badge_perfect_beat",
+        "baseFrequency": 440.0,
+        "frequencyRange": 1000.0,
+        "stageThemeColor": {"r": 0.9, "g": 0.9, "b": 1.0, "a": 1.0},
+        "backgroundImageName": "penguin_ice_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "4개의 정박에 맞춰 점프하세요",
+            "audioClipNames": ["metronome_4beat"],
+            "frequencies": [440.0, 440.0, 440.0, 440.0],
+            "volumes": [1.0, 1.0, 1.0, 1.0],
+            "correctAnswerIndex": 0,
+            "rhythmTiming": [0.0, 1.0, 2.0, 3.0],
+            "bpm": 60,
+            "buttonCount": 1,
+            "highlightColor": {"r": 1.0, "g": 0.8, "b": 0.2, "a": 0.8}
+          },
+          {
+            "questionIndex": 1,
+            "questionDescription": "또 다른 4개의 정박에 맞춰 점프하세요",
+            "audioClipNames": ["metronome_4beat"],
+            "frequencies": [440.0, 440.0, 440.0, 440.0],
+            "volumes": [1.0, 1.0, 1.0, 1.0],
+            "correctAnswerIndex": 0,
+            "rhythmTiming": [0.0, 1.0, 2.0, 3.0],
+            "bpm": 60,
+            "buttonCount": 1,
+            "highlightColor": {"r": 1.0, "g": 0.8, "b": 0.2, "a": 0.8}
+          }
+        ]
+      }
+    ],
+    "mode2Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "간단한 리듬 패턴",
+        "isBossStage": false,
+        "primaryGameMode": "Penguin_RhythmFollow",
+        "characterName": "Penguin",
+        "characterMentAudio": "penguin_rhythm_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "리듬 초보자 뱃지",
+        "achievementItemIcon": "badge_rhythm_beginner",
+        "baseFrequency": 440.0,
+        "frequencyRange": 1000.0,
+        "stageThemeColor": {"r": 0.8, "g": 0.9, "b": 1.0, "a": 1.0},
+        "backgroundImageName": "penguin_rhythm_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "길-짧짧-길 리듬을 따라하세요",
+            "audioClipNames": ["rhythm_long_short_short_long"],
+            "frequencies": [440.0, 880.0, 880.0, 440.0],
+            "volumes": [1.0, 0.8, 0.8, 1.0],
+            "correctAnswerIndex": 0,
+            "rhythmTiming": [0.0, 1.0, 1.5, 2.0],
+            "bpm": 120,
+            "buttonCount": 1,
+            "highlightColor": {"r": 0.9, "g": 0.7, "b": 1.0, "a": 0.8}
+          }
+        ]
+      }
+    ]
+  },
+  "otamatoneModes": {
+    "characterType": "Otamatone",
+    "displayName": "오타마톤 친구",
+    "description": "오타마톤과 함께 악기의 신비로운 소리를 탐험해요",
+    "mode1Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "악기군 구별",
+        "isBossStage": false,
+        "primaryGameMode": "Otamatone_DifferentInstrument",
+        "characterName": "Otamatone",
+        "characterMentAudio": "otamatone_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "악기군 구별사 메달",
+        "achievementItemIcon": "medal_instrument_family",
+        "baseFrequency": 440.0,
+        "frequencyRange": 3000.0,
+        "stageThemeColor": {"r": 1.0, "g": 0.9, "b": 0.7, "a": 1.0},
+        "backgroundImageName": "otamatone_concert_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "바이올린-바이올린-플루트 중에서 다른 악기를 찾으세요",
+            "audioClipNames": ["violin_C4", "violin_C4", "flute_C4"],
+            "frequencies": [261.63, 261.63, 261.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 1.0, "g": 0.6, "b": 0.2, "a": 0.8}
+          },
+          {
+            "questionIndex": 1,
+            "questionDescription": "첼로-첼로-트럼펫 중에서 다른 악기를 찾으세요",
+            "audioClipNames": ["cello_C4", "cello_C4", "trumpet_C4"],
+            "frequencies": [261.63, 261.63, 261.63],
+            "volumes": [1.0, 1.0, 1.0],
+            "correctAnswerIndex": 2,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 3,
+            "highlightColor": {"r": 1.0, "g": 0.6, "b": 0.2, "a": 0.8}
+          }
+        ]
+      }
+    ],
+    "mode2Stages": [
+      {
+        "stageIndex": 0,
+        "stageName": "기본 악기 인식",
+        "isBossStage": false,
+        "primaryGameMode": "Otamatone_InstrumentMatch",
+        "characterName": "Otamatone",
+        "characterMentAudio": "otamatone_match_stage1_intro",
+        "targetScore": 80,
+        "achievementItemName": "악기 인식 전문가",
+        "achievementItemIcon": "medal_instrument_expert",
+        "baseFrequency": 440.0,
+        "frequencyRange": 3000.0,
+        "stageThemeColor": {"r": 1.0, "g": 0.8, "b": 0.6, "a": 1.0},
+        "backgroundImageName": "otamatone_orchestra_bg",
+        "questions": [
+          {
+            "questionIndex": 0,
+            "questionDescription": "어떤 악기 소리인지 맞춰보세요",
+            "audioClipNames": ["piano_C4"],
+            "frequencies": [261.63],
+            "volumes": [1.0],
+            "correctAnswerIndex": 0,
+            "rhythmTiming": [],
+            "bpm": 0,
+            "buttonCount": 4,
+            "highlightColor": {"r": 0.9, "g": 0.5, "b": 0.3, "a": 0.8}
+          }
+        ]
+      }
+    ]
+  }
+}
