@@ -1,13 +1,24 @@
 using UnityEngine;
 
-// Lofelt.NiceVibrations 에셋을 사용할 경우, 이 네임스페이스를 활성화합니다.
-#if USE_NICE_VIBRATIONS
-using Lofelt.NiceVibrations;
-#endif
-
+/// <summary>
+/// 진동 피드백 매니저 - 인공와우 사용자를 위한 촉각 피드백
+/// </summary>
 public class HapticManager : MonoBehaviour
 {
     public static HapticManager Instance;
+
+    [Header("진동 설정")]
+    [SerializeField] private bool hapticEnabled = true;
+
+    [Header("진동 강도 설정")]
+    [Range(0f, 1f)]
+    [SerializeField] private float correctAnswerIntensity = 0.3f;
+    [Range(0f, 1f)]
+    [SerializeField] private float wrongAnswerIntensity = 0.5f;
+    [Range(0f, 1f)]
+    [SerializeField] private float buttonClickIntensity = 0.1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float achievementIntensity = 0.8f;
 
     private void Awake()
     {
@@ -15,6 +26,7 @@ public class HapticManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            LoadHapticSettings();
         }
         else
         {
@@ -22,69 +34,112 @@ public class HapticManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 가벼운 기본 진동을 재생합니다. (UI 터치 등)
-    /// </summary>
-    public void VibrateLight()
+    private void LoadHapticSettings()
     {
-#if UNITY_IOS && USE_NICE_VIBRATIONS
-        // iOS이고 NiceVibrations 에셋이 활성화된 경우, 가벼운 탭틱 피드백을 재생합니다.
-        HapticPatterns.Play(HapticPatterns.PresetType.LightImpact);
-
-#elif UNITY_ANDROID
-        // 안드로이드의 경우, 기본 진동을 사용하되 강도를 약하게 조절할 수 있습니다.
-        // (이 기능은 Android API 레벨에 따라 지원 여부가 다릅니다.)
-        // 여기서는 기본 진동을 사용합니다.
-        Handheld.Vibrate();
-
-#elif UNITY_EDITOR
-        // 에디터에서는 진동을 실행할 수 없으므로, 어떤 진동이 호출되었는지 로그를 남깁니다.
-        Debug.Log("Haptic Feedback: Vibrate Light");
-
-#else
-        // 그 외 플랫폼(예: iOS에서 NiceVibrations를 사용하지 않을 때)에서는 기본 진동을 사용합니다.
-        Handheld.Vibrate();
-#endif
+        if (DataManager.Instance?.gameData?.globalSettings != null)
+        {
+            hapticEnabled = DataManager.Instance.gameData.globalSettings.hapticEnabled;
+        }
     }
 
     /// <summary>
-    /// '성공'을 의미하는 햅틱 피드백을 재생합니다.
+    /// 정답 피드백 진동
     /// </summary>
-    public void VibrateSuccess()
+    public void PlayCorrectAnswerHaptic()
     {
-#if UNITY_IOS && USE_NICE_VIBRATIONS
-        HapticPatterns.Play(HapticPatterns.PresetType.Success);
+        if (!hapticEnabled) return;
 
-#elif UNITY_ANDROID
-        // 안드로이드에서는 '성공'을 표현하기 위해 짧은 진동을 두 번 주는 패턴을 사용할 수 있습니다.
-        // (이를 위해서는 별도의 패턴 재생 기능 구현이 필요하나, 여기서는 기본 진동으로 대체합니다.)
-        Handheld.Vibrate();
-
-#elif UNITY_EDITOR
-        Debug.Log("Haptic Feedback: Vibrate Success");
-
-#else
-        Handheld.Vibrate();
-#endif
+        PlayHapticPattern(new float[] { correctAnswerIntensity }, new float[] { 0.1f });
     }
 
     /// <summary>
-    /// '실패' 또는 '경고'를 의미하는 햅틱 피드백을 재생합니다.
+    /// 오답 피드백 진동
     /// </summary>
-    public void VibrateFailure()
+    public void PlayWrongAnswerHaptic()
     {
-#if UNITY_IOS && USE_NICE_VIBRATIONS
-        HapticPatterns.Play(HapticPatterns.PresetType.Failure);
+        if (!hapticEnabled) return;
 
-#elif UNITY_ANDROID
-        Handheld.Vibrate();
+        PlayHapticPattern(
+            new float[] { wrongAnswerIntensity, 0f, wrongAnswerIntensity },
+            new float[] { 0.1f, 0.05f, 0.1f }
+        );
+    }
 
-#elif UNITY_EDITOR
-        Debug.Log("Haptic Feedback: Vibrate Failure");
+    /// <summary>
+    /// 버튼 클릭 진동
+    /// </summary>
+    public void PlayButtonClickHaptic()
+    {
+        if (!hapticEnabled) return;
 
-#else
-        Handheld.Vibrate();
+        PlayHapticPattern(new float[] { buttonClickIntensity }, new float[] { 0.05f });
+    }
+
+    /// <summary>
+    /// 업적 달성 진동
+    /// </summary>
+    public void PlayAchievementHaptic()
+    {
+        if (!hapticEnabled) return;
+
+        PlayHapticPattern(
+            new float[] { achievementIntensity, 0f, achievementIntensity, 0f, achievementIntensity },
+            new float[] { 0.2f, 0.1f, 0.2f, 0.1f, 0.3f }
+        );
+    }
+
+    /// <summary>
+    /// 박자 맞추기용 진동 (펭귄 게임)
+    /// </summary>
+    public void PlayBeatHaptic(float intensity = 0.2f)
+    {
+        if (!hapticEnabled) return;
+
+        PlayHapticPattern(new float[] { intensity }, new float[] { 0.1f });
+    }
+
+    private void PlayHapticPattern(float[] intensities, float[] durations)
+    {
+        StartCoroutine(HapticPatternCoroutine(intensities, durations));
+    }
+
+    private System.Collections.IEnumerator HapticPatternCoroutine(float[] intensities, float[] durations)
+    {
+        for (int i = 0; i < intensities.Length && i < durations.Length; i++)
+        {
+            if (intensities[i] > 0f)
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                Handheld.Vibrate();
+#elif UNITY_IOS && !UNITY_EDITOR
+                // iOS 진동 구현
+                Handheld.Vibrate();
 #endif
+            }
+
+            yield return new WaitForSeconds(durations[i]);
+        }
+    }
+
+    /// <summary>
+    /// 진동 활성화/비활성화 설정
+    /// </summary>
+    public void SetHapticEnabled(bool enabled)
+    {
+        hapticEnabled = enabled;
+
+        if (DataManager.Instance?.gameData?.globalSettings != null)
+        {
+            DataManager.Instance.gameData.globalSettings.hapticEnabled = enabled;
+            DataManager.Instance.SaveData();
+        }
+    }
+
+    /// <summary>
+    /// 진동 활성화 상태 반환
+    /// </summary>
+    public bool IsHapticEnabled()
+    {
+        return hapticEnabled;
     }
 }
-

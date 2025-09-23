@@ -375,22 +375,22 @@ public class PenguinGameController : MonoBehaviour, IGameMode
         if (accuracy <= perfectTiming)
         {
             points = 100;
-            feedback = "완벽! 🎵";
+            feedback = "완벽!";
         }
         else if (accuracy <= goodTiming)
         {
             points = 80;
-            feedback = "좋아요! 🎶";
+            feedback = "좋아요!";
         }
         else if (accuracy <= acceptableTiming)
         {
             points = 60;
-            feedback = "괜찮아요! 🎹";
+            feedback = "괜찮아요!";
         }
         else
         {
             points = 20;
-            feedback = "조금 더 정확하게! ⏰";
+            feedback = "조금 더 정확하게!";
         }
 
         currentScore += points;

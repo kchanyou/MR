@@ -56,7 +56,6 @@ public class StageNode : MonoBehaviour
     /// </summary>
     private void LoadStageData()
     {
-        // StageMapManager를 통해 스테이지 데이터 가져오기
         string currentGameType = GameManager.CurrentGameType;
 
         if (!string.IsNullOrEmpty(currentGameType))
@@ -65,7 +64,6 @@ public class StageNode : MonoBehaviour
 
             if (stageData != null)
             {
-                // 업적 달성 여부 확인
                 CheckAchievementStatus(currentGameType, stageIndex);
             }
         }
@@ -83,8 +81,8 @@ public class StageNode : MonoBehaviour
 
                 if (collection != null)
                 {
-                    bool isFirstMode = index < 8;
-                    int adjustedIndex = index % 8;
+                    bool isFirstMode = index < 4;  // 0-3: Mode1, 4-7: Mode2
+                    int adjustedIndex = index % 4;
                     GameModeType modeType = GetGameModeType(gameType, isFirstMode);
 
                     return collection.GetStage(modeType, adjustedIndex);
@@ -118,8 +116,8 @@ public class StageNode : MonoBehaviour
     {
         if (DataManager.Instance != null)
         {
-            bool isFirstMode = index < 8;
-            int adjustedIndex = index % 8;
+            bool isFirstMode = index < 4;
+            int adjustedIndex = index % 4;
             string modeTypeStr = isFirstMode ? "Mode1" : "Mode2";
 
             hasAchievement = DataManager.Instance.IsAchievementUnlocked(gameType, modeTypeStr, adjustedIndex);
@@ -131,16 +129,9 @@ public class StageNode : MonoBehaviour
     /// </summary>
     private void UpdateNodeVisuals()
     {
-        // 기본 정보 표시
         UpdateBasicInfo();
-
-        // 상태별 시각적 업데이트
         UpdateStateVisuals();
-
-        // 진행도 정보 표시
         UpdateProgressInfo();
-
-        // 업적 배지 표시
         UpdateAchievementBadge();
     }
 
@@ -157,11 +148,14 @@ public class StageNode : MonoBehaviour
         {
             stageNameText.text = stageData.stageName;
         }
+        else if (stageNameText != null)
+        {
+            stageNameText.text = $"Stage {stageIndex + 1}";
+        }
 
         // 스테이지 아이콘
         if (stageIcon != null && stageData != null)
         {
-            // 게임 모드에 따른 아이콘 설정
             UpdateStageIcon();
         }
 
@@ -176,22 +170,21 @@ public class StageNode : MonoBehaviour
     {
         if (stageIcon == null || stageData == null) return;
 
-        // 게임 모드별 아이콘 색상 설정
         Color iconColor = Color.white;
 
         switch (stageData.primaryGameMode)
         {
             case GameModeType.Dolphin_DifferentSound:
             case GameModeType.Dolphin_MelodyShape:
-                iconColor = new Color(0.2f, 0.7f, 1.0f); // 파란색
+                iconColor = new Color(0.2f, 0.7f, 1.0f);
                 break;
             case GameModeType.Penguin_RhythmJump:
             case GameModeType.Penguin_RhythmFollow:
-                iconColor = new Color(0.9f, 0.9f, 1.0f); // 하얀색
+                iconColor = new Color(0.9f, 0.9f, 1.0f);
                 break;
             case GameModeType.Otamatone_DifferentInstrument:
             case GameModeType.Otamatone_InstrumentMatch:
-                iconColor = new Color(1.0f, 0.6f, 0.2f); // 주황색
+                iconColor = new Color(1.0f, 0.6f, 0.2f);
                 break;
         }
 
@@ -202,12 +195,10 @@ public class StageNode : MonoBehaviour
     {
         if (difficultyStars == null || stageData == null) return;
 
-        // 스테이지 인덱스를 기반으로 난이도 계산
-        int adjustedIndex = stageIndex % 8;
-        float difficulty = 1.0f + (adjustedIndex * 0.5f); // 1.0 ~ 4.5
+        int adjustedIndex = stageIndex % 4;
+        float difficulty = 1.0f + (adjustedIndex * 0.75f); // 1.0 ~ 3.25
 
-        // 별 5개 중 몇 개를 채울지 계산
-        float fillAmount = difficulty / 5.0f;
+        float fillAmount = difficulty / 4.0f;
         difficultyStars.fillAmount = fillAmount;
     }
 
@@ -240,13 +231,11 @@ public class StageNode : MonoBehaviour
                 break;
         }
 
-        // 배경 색상 적용
         if (nodeBackground != null)
         {
             nodeBackground.color = backgroundColor;
         }
 
-        // 버튼 상호작용 설정
         if (nodeButton != null)
         {
             nodeButton.interactable = isInteractable;
@@ -258,8 +247,8 @@ public class StageNode : MonoBehaviour
         if (DataManager.Instance == null) return;
 
         string gameType = GameManager.CurrentGameType;
-        bool isFirstMode = stageIndex < 8;
-        int adjustedIndex = stageIndex % 8;
+        bool isFirstMode = stageIndex < 4;
+        int adjustedIndex = stageIndex % 4;
         string modeTypeStr = isFirstMode ? "Mode1" : "Mode2";
 
         StageProgress progress = DataManager.Instance.GetStageProgress(gameType, modeTypeStr, adjustedIndex);
@@ -302,7 +291,6 @@ public class StageNode : MonoBehaviour
 
             if (hasAchievement)
             {
-                // 업적 배지 반짝임 효과
                 StartCoroutine(AchievementBadgeGlow());
             }
         }
@@ -351,22 +339,18 @@ public class StageNode : MonoBehaviour
     {
         if (nodeState == NodeState.Locked)
         {
-            // 잠긴 스테이지 클릭 시 알림
             ShowLockedStageMessage();
             return;
         }
 
-        // 클릭 효과
         StartCoroutine(ClickEffect());
-
-        // 스테이지 선택 처리
         stageMapManager?.OnStageSelected(stageIndex);
     }
 
     private void ShowLockedStageMessage()
     {
-        // TODO: 잠긴 스테이지 알림 UI 표시
         Debug.Log("이 스테이지는 아직 잠겨있습니다!");
+        // TODO: UI 알림 표시
     }
 
     private IEnumerator ClickEffect()
@@ -374,7 +358,6 @@ public class StageNode : MonoBehaviour
         if (nodeBackground == null) yield break;
 
         Vector3 originalScale = transform.localScale;
-        Color originalColor = nodeBackground.color;
 
         // 스케일 애니메이션
         for (float t = 0; t < 0.1f; t += Time.deltaTime)
@@ -410,15 +393,13 @@ public class StageNode : MonoBehaviour
     {
         hasAchievement = true;
         UpdateAchievementBadge();
-
-        // 업적 달성 파티클 효과
         StartCoroutine(AchievementUnlockEffect());
     }
 
     private IEnumerator AchievementUnlockEffect()
     {
-        // TODO: 파티클 시스템이나 기타 시각적 효과 구현
         Debug.Log($"스테이지 {stageIndex + 1} 업적 달성!");
+        // TODO: 파티클 시스템이나 기타 시각적 효과 구현
         yield return null;
     }
 }
@@ -428,7 +409,7 @@ public class StageNode : MonoBehaviour
 /// </summary>
 public enum NodeState
 {
-    Locked,      // 잠김
-    Unlocked,    // 해금됨
-    Cleared      // 클리어됨
+    Locked,
+    Unlocked,
+    Cleared
 }

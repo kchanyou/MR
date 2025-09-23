@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Audio;
 
 /// <summary>
 /// 인공와우 사용자를 위한 향상된 주파수 조절 오디오 매니저
@@ -8,6 +9,24 @@ using System.Collections.Generic;
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance;
+
+    // AudioManager.cs 기존 코드에 다음 부분들을 추가
+
+    [Header("SoundManager 통합 기능")]
+    [SerializeField] private AudioMixerGroup masterMixerGroup;
+    [SerializeField] private AudioMixerGroup musicMixerGroup;
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField] private AudioMixerGroup voiceMixerGroup;
+
+    [Header("3D 사운드 설정")]
+    [SerializeField] private bool enable3DSound = false;
+    [SerializeField] private float dopplerLevel = 1.0f;
+    [SerializeField] private float soundSpeed = 343.3f;
+
+    // SoundManager에서 이관된 기능들
+    private Dictionary<string, AudioClip> preloadedClips;
+    private Queue<AudioSource> audioSourcePool;
+    private int poolSize = 10;
 
     [Header("오디오 소스 설정")]
     [SerializeField] private AudioSource characterVoiceSource;
@@ -45,6 +64,7 @@ public class AudioManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             InitializeAudioManager();
+            InitializeSoundManagerFeatures(); // 이 라인 추가
         }
         else
         {
@@ -258,6 +278,162 @@ public class AudioManager : MonoBehaviour
 
         audioClipCache[path] = clip;
         cacheKeys.Enqueue(path);
+    }
+
+
+    // AudioManager Awake()에 추가할 코드
+    private void InitializeSoundManagerFeatures()
+    {
+        preloadedClips = new Dictionary<string, AudioClip>();
+        audioSourcePool = new Queue<AudioSource>();
+        
+        // 오디오 소스 풀 생성
+        for (int i = 0; i < poolSize; i++)
+        {
+            GameObject audioObj = new GameObject($"PooledAudioSource_{i}");
+            audioObj.transform.SetParent(transform);
+            AudioSource source = audioObj.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            audioSourcePool.Enqueue(source);
+        }
+
+        // 3D 사운드 설정
+        if (enable3DSound)
+        {
+            AudioSettings.dopplerLevel = dopplerLevel;
+            AudioSettings.speedOfSound = soundSpeed;
+        }
+    }
+
+    /// <summary>
+    /// 오디오 클립을 미리 로드합니다 (SoundManager 기능)
+    /// </summary>
+    public void PreloadAudioClip(string clipName, string path)
+    {
+        if (!preloadedClips.ContainsKey(clipName))
+        {
+            AudioClip clip = Resources.Load<AudioClip>(path);
+            if (clip != null)
+            {
+                preloadedClips[clipName] = clip;
+                Debug.Log($"오디오 클립 미리 로드: {clipName}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 여러 오디오 클립을 배치로 미리 로드합니다
+    /// </summary>
+    public void PreloadAudioClips(string[] clipNames, string[] paths)
+    {
+        for (int i = 0; i < clipNames.Length && i < paths.Length; i++)
+        {
+            PreloadAudioClip(clipNames[i], paths[i]);
+        }
+    }
+
+    /// <summary>
+    /// 풀에서 오디오 소스를 가져옵니다
+    /// </summary>
+    private AudioSource GetPooledAudioSource()
+    {
+        if (audioSourcePool.Count > 0)
+        {
+            return audioSourcePool.Dequeue();
+        }
+        
+        // 풀이 비어있으면 새로 생성
+        GameObject audioObj = new GameObject($"TempAudioSource_{Time.time}");
+        audioObj.transform.SetParent(transform);
+        return audioObj.AddComponent<AudioSource>();
+    }
+
+    /// <summary>
+    /// 오디오 소스를 풀로 반환합니다
+    /// </summary>
+    private void ReturnToPool(AudioSource source)
+    {
+        source.Stop();
+        source.clip = null;
+        audioSourcePool.Enqueue(source);
+    }
+
+    /// <summary>
+    /// 3D 위치에서 효과음을 재생합니다
+    /// </summary>
+    public void PlaySFXAtPosition(string sfxName, Vector3 position, float volume = 1.0f)
+    {
+        AudioSource source = GetPooledAudioSource();
+        source.transform.position = position;
+        
+        AudioClip clip = GetAudioClip(sfxName);
+        if (clip != null)
+        {
+            source.clip = clip;
+            source.volume = volume * sfxVolume * masterVolume;
+            source.spatialBlend = enable3DSound ? 1.0f : 0.0f;
+            source.Play();
+            
+            StartCoroutine(ReturnSourceAfterPlayback(source, clip.length));
+        }
+    }
+
+    /// <summary>
+    /// 오디오 클립 재생 후 소스를 풀로 반환하는 코루틴
+    /// </summary>
+    private IEnumerator ReturnSourceAfterPlayback(AudioSource source, float duration)
+    {
+        yield return new WaitForSeconds(duration);
+        ReturnToPool(source);
+    }
+
+    /// <summary>
+    /// 오디오 클립을 가져옵니다 (캐시 및 미리 로드된 클립 우선)
+    /// </summary>
+    private AudioClip GetAudioClip(string clipName)
+    {
+        // 미리 로드된 클립 확인
+        if (preloadedClips.ContainsKey(clipName))
+        {
+            return preloadedClips[clipName];
+        }
+        
+        // 기존 LoadAudioClip 메서드 사용
+        return LoadAudioClip($"Audio/SFX/{clipName}");
+    }
+
+    /// <summary>
+    /// 모든 미리 로드된 클립을 해제합니다
+    /// </summary>
+    public void UnloadAllPreloadedClips()
+    {
+        foreach (var clip in preloadedClips.Values)
+        {
+            if (clip != null)
+            {
+                Resources.UnloadAsset(clip);
+            }
+        }
+        preloadedClips.Clear();
+        Debug.Log("모든 미리 로드된 오디오 클립 해제 완료");
+    }
+
+    /// <summary>
+    /// 오디오 믹서 그룹 설정
+    /// </summary>
+    public void SetMixerGroups()
+    {
+        if (characterVoiceSource != null && voiceMixerGroup != null)
+            characterVoiceSource.outputAudioMixerGroup = voiceMixerGroup;
+            
+        if (gameAudioSource != null && sfxMixerGroup != null)
+            gameAudioSource.outputAudioMixerGroup = sfxMixerGroup;
+            
+        if (backgroundMusicSource != null && musicMixerGroup != null)
+            backgroundMusicSource.outputAudioMixerGroup = musicMixerGroup;
+            
+        if (sfxSource != null && sfxMixerGroup != null)
+            sfxSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private string GetFrequencyAdjustedClipName(string originalName, float frequency)

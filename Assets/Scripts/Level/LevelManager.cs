@@ -13,7 +13,6 @@ public class LevelManager : MonoBehaviour
     public int currentStageIndex = 0;
     public int currentQuestionIndex = 0;
 
-    // GameModeData 대신 GameModeCollection 사용
     public GameModeCollection currentGameModeCollection;
 
     private GameDataContainer gameDataContainer;

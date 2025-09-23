@@ -65,7 +65,6 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
         };
 
         instrumentSpriteDict = new Dictionary<string, Sprite>();
-        // 스프라이트 딕셔너리 초기화는 Inspector에서 설정된 스프라이트 배열을 사용
         InitializeSpriteDictionary();
     }
 
@@ -204,16 +203,13 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
         UpdateUI();
         ResetButtonColors();
 
-        // 현재 문제 정보를 기반으로 UI 상태 갱신
         if (currentQuestionData != null)
         {
-            // 질문 설명 텍스트 업데이트
             if (instructionText != null)
             {
                 instructionText.text = "소리를 들어보세요...";
             }
 
-            // 문제 번호 업데이트
             if (questionCountText != null)
             {
                 questionCountText.text = $"문제 {currentQuestionIndex + 1} / 10";
@@ -226,10 +222,8 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
     /// </summary>
     private void InitializeGameUI()
     {
-        // 모든 버튼 초기화
         ResetButtonColors();
 
-        // 기본 텍스트 설정
         if (instructionText != null)
         {
             instructionText.text = "오타마톤과 함께 악기 소리를 탐험해보세요!";
@@ -240,10 +234,9 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
             questionCountText.text = "준비 중...";
         }
 
-        // 다시 듣기 버튼 상태 설정
         if (playAgainButton != null)
         {
-            playAgainButton.interactable = false; // 처음에는 비활성화
+            playAgainButton.interactable = false;
         }
     }
 
@@ -252,13 +245,11 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
     /// </summary>
     private void UpdateGameplayUI()
     {
-        // 다시 듣기 버튼 활성화 (악기 맞추기 모드에서만)
         if (playAgainButton != null && currentLevelData.primaryGameMode == GameModeType.Otamatone_InstrumentMatch)
         {
             playAgainButton.interactable = !isPlayingSequence;
         }
 
-        // 버튼 상호작용 가능 여부 설정
         SetButtonsInteractable(isWaitingForAnswer && !isPlayingSequence);
     }
 
@@ -332,19 +323,16 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
     {
         if (currentLevelData.primaryGameMode == GameModeType.Otamatone_DifferentInstrument)
         {
-            // 다른 악기 찾기 모드: 3개 버튼에 2개는 같은 악기, 1개는 다른 악기
             SetupDifferentInstrumentMode();
         }
         else
         {
-            // 악기 맞추기 모드: 여러 선택지 중에서 정답 선택
             SetupInstrumentMatchMode();
         }
     }
 
     private void SetupDifferentInstrumentMode()
     {
-        // 오디오 클립명에서 악기 이름 추출하여 버튼 설정
         for (int i = 0; i < activeButtonCount && i < currentQuestionData.audioClipNames.Length; i++)
         {
             string instrumentKey = ExtractInstrumentFromClipName(currentQuestionData.audioClipNames[i]);
@@ -354,7 +342,6 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
 
     private void SetupInstrumentMatchMode()
     {
-        // 스테이지별 선택지 구성 (JSON에서 정의된 선택지 사용)
         string[] stageInstruments = GetInstrumentChoicesForStage();
 
         for (int i = 0; i < activeButtonCount && i < stageInstruments.Length; i++)
@@ -380,15 +367,13 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
                 instrumentIcons[buttonIndex].sprite = instrumentSpriteDict[instrumentKey];
             }
 
-            // 버튼 색상 초기화
             SetButtonColor(buttonIndex, normalButtonColor);
         }
     }
 
     private string[] GetInstrumentChoicesForStage()
     {
-        // 스테이지별 악기 선택지 정의 (실제로는 JSON에서 로드해야 함)
-        switch (currentLevelData.stageIndex % 8)
+        switch (currentLevelData.stageIndex % 4)
         {
             case 0: return new string[] { "piano", "guitar", "violin", "flute" };
             case 1: return new string[] { "saxophone", "cello", "horn", "harp", "timpani", "drums" };
@@ -400,7 +385,6 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
 
     private string ExtractInstrumentFromClipName(string clipName)
     {
-        // 오디오 클립명에서 악기 이름 추출 (예: "violin_C4" -> "violin")
         int underscoreIndex = clipName.IndexOf('_');
         return underscoreIndex > 0 ? clipName.Substring(0, underscoreIndex) : clipName;
     }
@@ -436,7 +420,6 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
         isPlayingSequence = false;
         isWaitingForAnswer = true;
 
-        // UI 상태 업데이트
         UpdateGameplayUI();
     }
 
@@ -447,10 +430,8 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
         // 3개 버튼을 순차적으로 하이라이트하며 소리 재생
         for (int i = 0; i < activeButtonCount && i < currentQuestionData.audioClipNames.Length; i++)
         {
-            // 버튼 하이라이트
             SetButtonColor(i, playingButtonColor);
 
-            // 악기 소리 재생
             if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayGameAudio(
@@ -459,12 +440,10 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
                 );
             }
 
-            // 음파 시각화 효과
             StartCoroutine(SoundWaveEffect());
 
             yield return new WaitForSeconds(1.8f);
 
-            // 하이라이트 해제
             SetButtonColor(i, normalButtonColor);
             yield return new WaitForSeconds(0.5f);
         }
@@ -476,7 +455,6 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
     {
         instructionText.text = "악기 소리를 들어보세요";
 
-        // 단일 악기 소리 재생
         if (AudioManager.Instance != null && currentQuestionData.audioClipNames.Length > 0)
         {
             AudioManager.Instance.PlayGameAudio(
@@ -540,16 +518,13 @@ public class OtamatoneGameController : MonoBehaviour, IGameMode
         Color feedbackColor = isCorrect ? correctButtonColor : wrongButtonColor;
         SetButtonColor(selectedIndex, feedbackColor);
 
-        // 정답 버튼도 표시 (오답인 경우)
         if (!isCorrect && currentQuestionData.correctAnswerIndex < activeButtonCount)
         {
             SetButtonColor(currentQuestionData.correctAnswerIndex, correctButtonColor);
         }
 
-        // 텍스트 피드백
-        instructionText.text = isCorrect ? "정답입니다! 🎵" : "아쉬워요! 다시 도전해보세요 🎶";
+        instructionText.text = isCorrect ? "정답입니다!" : "아쉬워요! 다시 도전해보세요";
 
-        // 오타마톤 반응
         if (otamatoneAnimator != null)
         {
             otamatoneAnimator.SetTrigger(isCorrect ? "Happy" : "Sad");

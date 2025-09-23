@@ -355,6 +355,14 @@ public class DolphinGameController : MonoBehaviour, IGameMode
     {
         UpdateUI();
         ResetButtonColors();
+
+        if (currentQuestionData != null)
+        {
+            if (instructionText != null)
+            {
+                instructionText.text = "소리를 들어보세요...";
+            }
+        }
     }
 
     private IEnumerator WaitAndProceedToNext(bool wasCorrect)

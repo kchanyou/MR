@@ -304,12 +304,10 @@ public class StageMapManager : MonoBehaviour
     /// </summary>
     public void OnAchievementUnlocked(int stageIndex)
     {
-        // 해당 스테이지 노드 찾기
         StageNode[] stageNodes = FindObjectsOfType<StageNode>();
 
         foreach (StageNode node in stageNodes)
         {
-            // 스테이지 노드에 업적 해금 알림
             if (node.transform.GetSiblingIndex() == stageIndex)
             {
                 node.OnAchievementUnlocked();
