@@ -144,7 +144,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 172e7de62252b4f41b42a50b35461a8d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -166,10 +166,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf389e575e8a293458de376dd7dfc605, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stageButton: {fileID: 4006571339775306416}
-  stageNumberText: {fileID: 6653490201640200560}
-  lockedIcon: {fileID: 2034333843887967483}
-  clearedIcon: {fileID: 7848020046985881181}
+  nodeButton: {fileID: 4006571339775306416}
+  nodeBackground: {fileID: 0}
+  stageIcon: {fileID: 0}
+  stageNumberText: {fileID: 0}
+  stageNameText: {fileID: 0}
+  difficultyStars: {fileID: 0}
+  progressSlider: {fileID: 0}
+  lockedOverlay: {fileID: 2034333843887967483}
+  clearStamp: {fileID: 0}
+  achievementBadge: {fileID: 0}
+  bestScoreText: {fileID: 0}
+  lockedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  unlockedColor: {r: 1, g: 1, b: 1, a: 1}
+  clearedColor: {r: 0, g: 1, b: 0, a: 1}
+  currentColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &6729752913436515952
 GameObject:
   m_ObjectHideFlags: 0

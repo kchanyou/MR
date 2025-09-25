@@ -281,12 +281,11 @@ public class AudioManager : MonoBehaviour
     }
 
 
-    // AudioManager Awake()에 추가할 코드
     private void InitializeSoundManagerFeatures()
     {
         preloadedClips = new Dictionary<string, AudioClip>();
         audioSourcePool = new Queue<AudioSource>();
-        
+
         // 오디오 소스 풀 생성
         for (int i = 0; i < poolSize; i++)
         {
@@ -294,17 +293,39 @@ public class AudioManager : MonoBehaviour
             audioObj.transform.SetParent(transform);
             AudioSource source = audioObj.AddComponent<AudioSource>();
             source.playOnAwake = false;
+
+            // 3D 사운드 설정 (개별 AudioSource에 적용)
+            SetupAudioSourceFor3D(source);
+
             audioSourcePool.Enqueue(source);
         }
 
-        // 3D 사운드 설정
-        if (enable3DSound)
-        {
-            AudioSettings.dopplerLevel = dopplerLevel;
-            AudioSettings.speedOfSound = soundSpeed;
-        }
+        // 기존 AudioSource들도 3D 설정 적용
+        SetupAudioSourceFor3D(gameAudioSource);
+        SetupAudioSourceFor3D(sfxSource);
     }
 
+
+    /// <summary>
+    /// 개별 AudioSource에 3D 사운드 설정을 적용합니다.
+    /// </summary>
+    private void SetupAudioSourceFor3D(AudioSource source)
+    {
+        if (enable3DSound && source != null)
+        {
+            source.spatialBlend = 1.0f;                    // 3D 사운드 활성화
+            source.dopplerLevel = dopplerLevel;            // 개별 도플러 설정
+            source.rolloffMode = AudioRolloffMode.Logarithmic;
+            source.minDistance = 1f;
+            source.maxDistance = 500f;
+        }
+        else if (source != null)
+        {
+            source.spatialBlend = 0.0f;                    // 2D 사운드
+            source.dopplerLevel = 0f;
+        }
+
+    }
     /// <summary>
     /// 오디오 클립을 미리 로드합니다 (SoundManager 기능)
     /// </summary>
