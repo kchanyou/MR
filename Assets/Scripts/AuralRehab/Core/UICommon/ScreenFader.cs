@@ -9,13 +9,18 @@ namespace AuralRehab.Core.UICommon {
     /// - 첫 생성: startOpaqueOnAwake=true면 검정(알파=1)로 시작 → 워밍업 프레임 대기 → 페이드인
     /// - 씬 로드: autoFadeInOnSceneLoaded=true면 페이드인
     /// - 프레임 시간 튐 방지: maxStepSec(기본 0.05s)로 per-frame dt 상한 처리
+    /// - sortingOrder는 16bit 안전범위로 클램프
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-9990)]
     public class ScreenFader : MonoBehaviour {
+        // 정렬값 안전 범위
+        const int kSafeMinOrder = -32000;
+        const int kSafeMaxOrder =  32000;
+
         [Header("Canvas")]
         [SerializeField] Vector2 referenceResolution = new(1080, 1920);
-        [SerializeField] int sortingOrder = 64000; // Caption(32760), TitleOverlay(32000)보다 위
+        [SerializeField] int sortingOrder = 32000; // Caption(30000), TitleOverlay(29000)보다 위
 
         [Header("Behavior")]
         [SerializeField] bool startOpaqueOnAwake = true;      // 생성 시 알파=1로 시작
@@ -41,13 +46,12 @@ namespace AuralRehab.Core.UICommon {
         void Awake() {
             BuildOverlayIfNeeded();
 
-            // 생성 직후 알파 설정(요청: 알파=1 시작 권장)
+            // 생성 직후 알파 설정
             var c = defaultColor; c.a = startOpaqueOnAwake ? 1f : 0f;
             _image.color = c;
             _image.raycastTarget = startOpaqueOnAwake && blockRaycastDuringFade;
 
             if (autoFadeInOnAwake) {
-                // 초기 프레임 시간 튐 방지를 위해 워밍업 후 페이드인
                 if (_co != null) StopCoroutine(_co);
                 _co = StartCoroutine(FadeInAfterWarmup(defaultDuration, defaultColor, warmupFramesOnAwake));
             }
@@ -68,13 +72,14 @@ namespace AuralRehab.Core.UICommon {
             var cvsGO = new GameObject("FaderCanvas",
                 typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             cvsGO.transform.SetParent(transform, false);
-            _canvas = cvsGO.GetComponent<Canvas>();
-            _scaler = cvsGO.GetComponent<CanvasScaler>();
-            _raycaster = cvsGO.GetComponent<GraphicRaycaster>();
+            _canvas   = cvsGO.GetComponent<Canvas>();
+            _scaler   = cvsGO.GetComponent<CanvasScaler>();
+            _raycaster= cvsGO.GetComponent<GraphicRaycaster>();
 
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _canvas.overrideSorting = true;
-            _canvas.sortingOrder = 64000;
+            _canvas.sortingOrder = Mathf.Clamp(sortingOrder, kSafeMinOrder, kSafeMaxOrder);
+
             _scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             _scaler.referenceResolution = referenceResolution;
 
@@ -103,10 +108,7 @@ namespace AuralRehab.Core.UICommon {
         }
 
         public IEnumerator FadeInAfterWarmup(float duration, Color color, int warmupFrames) {
-            // 렌더 안정화용 워밍업
-            for (int i = 0; i < Mathf.Max(0, warmupFrames); i++) {
-                yield return new WaitForEndOfFrame();
-            }
+            for (int i = 0; i < Mathf.Max(0, warmupFrames); i++) yield return new WaitForEndOfFrame();
             yield return FadeIn(duration, color);
         }
 
@@ -118,11 +120,10 @@ namespace AuralRehab.Core.UICommon {
             float t = 0f;
             while (t < duration) {
                 float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-                if (dt > maxStepSec) dt = maxStepSec; // 핵심: 프레임 튐 상한
+                if (dt > maxStepSec) dt = maxStepSec; // 프레임 튐 상한
                 t += dt;
                 float k = 1f - Mathf.Clamp01(t / duration);
-                // S-curve 이징
-                k = k * k * (3f - 2f * k);
+                k = k * k * (3f - 2f * k); // S-curve
                 _image.color = new Color(color.r, color.g, color.b, k);
                 yield return null;
             }
@@ -139,7 +140,7 @@ namespace AuralRehab.Core.UICommon {
             float t = 0f;
             while (t < duration) {
                 float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-                if (dt > maxStepSec) dt = maxStepSec; // 튐 상한
+                if (dt > maxStepSec) dt = maxStepSec;
                 t += dt;
                 float k = Mathf.Clamp01(t / duration);
                 k = k * k * (3f - 2f * k);
@@ -159,8 +160,8 @@ namespace AuralRehab.Core.UICommon {
         }
 
         public void SetSortingOrder(int order) {
-            sortingOrder = order;
-            if (_canvas != null) _canvas.sortingOrder = order;
+            sortingOrder = Mathf.Clamp(order, kSafeMinOrder, kSafeMaxOrder);
+            if (_canvas != null) _canvas.sortingOrder = sortingOrder;
         }
 
         public void SetDefaults(float duration, Color color) {
