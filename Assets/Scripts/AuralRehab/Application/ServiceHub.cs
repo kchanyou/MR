@@ -79,7 +79,6 @@ namespace AuralRehab.Application {
             Fader = faderGO.AddComponent<ScreenFader>();
             Fader.SetDefaults(faderDefaultDuration, faderDefaultColor);
 
-            // 중요: 첫 씬에서도 확실히 페이드인 실행
             Fader.PlayFadeIn(faderDefaultDuration, faderDefaultColor);
         }
 

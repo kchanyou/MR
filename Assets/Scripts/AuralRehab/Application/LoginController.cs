@@ -44,7 +44,6 @@ namespace AuralRehab.Application {
             if (btnStartWithName) btnStartWithName.onClick.AddListener(OnStartWithName);
             if (btnStartGuest)    btnStartGuest.onClick.AddListener(OnStartGuest);
 
-            ServiceHub.I.Caption.ShowTop("로그인 방식을 선택하세요.");
         }
 
         void EnsureMainCamera() {

@@ -29,7 +29,7 @@ namespace AuralRehab.Application {
         public string nextScene = Scenes.Login; // 다음 씬(없으면 콘솔 경고만)
 
         [Header("Skip UI")]
-        public bool showSkipButton = true;
+        public bool showSkipButton = false;
         public TMP_FontAsset uiFont;        // PretendardVariable SDF 등
 
         VideoPlayer vp;
@@ -67,8 +67,6 @@ namespace AuralRehab.Application {
                 if (tmp != null && uiFont.material != null)
                     tmp.fontSharedMaterial = uiFont.material;
             }
-            // 한 프레임 뒤 자막 노출(폰트 주입 완료 보장)
-            StartCoroutine(_ShowCaptionOnNextFrame("화면을 터치하면 건너뜁니다."));
         }
 
         System.Collections.IEnumerator _ShowCaptionOnNextFrame(string msg) {
@@ -86,6 +84,7 @@ namespace AuralRehab.Application {
             scaler.referenceResolution = new Vector2(1080, 1920);
             overlay.transform.SetParent(transform, false);
 
+            /*
             if (showSkipButton) {
                 var btnGO = new GameObject("SkipButton", typeof(Image), typeof(Button));
                 btnGO.transform.SetParent(overlay.transform, false);
@@ -116,6 +115,7 @@ namespace AuralRehab.Application {
                 tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
                 tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
             }
+            */
         }
 
         void BuildVideoPlayer() {

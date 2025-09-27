@@ -74,7 +74,7 @@ namespace AuralRehab.Core.UICommon {
 
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _canvas.overrideSorting = true;
-            _canvas.sortingOrder = sortingOrder;
+            _canvas.sortingOrder = 64000;
             _scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             _scaler.referenceResolution = referenceResolution;
 
