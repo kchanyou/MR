@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -10,8 +12,8 @@ using AuralRehab.GamePlay;
 namespace AuralRehab.Application {
     /// <summary>
     /// 게임 호스트(같은 씬 결과 오버레이 + 자동 시작 + 설정 모달)
-    /// - G1/G2/G3 전용 구현
-    /// - G4~G6 임시 스텁(순차 교체 예정)
+    /// - G1~G3 연결, G4~G6은 임시 스텁
+    /// - Dev/Debug: 인스펙터 오버라이드, 단축키, 오버레이
     /// </summary>
     public class GameHostController : MonoBehaviour {
         [Header("UI Refs (Assign in Inspector)")]
@@ -20,8 +22,8 @@ namespace AuralRehab.Application {
         [SerializeField] TMP_Text hintText;
         [SerializeField] Button btnBack;
         [SerializeField] Button btnRetry;
-        [SerializeField] Button btnStart; // 자동 시작이면 비활성
-        [SerializeField] Button btnMenu;  // 햄버거
+        [SerializeField] Button btnStart;
+        [SerializeField] Button btnMenu;
 
         [Header("Play Area")]
         [SerializeField] RectTransform playArea;
@@ -39,6 +41,21 @@ namespace AuralRehab.Application {
         [SerializeField] int   trialsPerGame = 8;
         [SerializeField] float autoStartDelay = 3f;
 
+        // ---------- Dev / Debug ----------
+        [Header("Dev / Debug (Optional)")]
+        [SerializeField] bool devMode = false;
+        [SerializeField] bool devShowOverlay = true;
+        [SerializeField] bool devOverrideRoute = false;
+        [SerializeField] CampaignId devCampaign = CampaignId.A;
+        [SerializeField, Range(1,8)] int devStage = 1;
+        [SerializeField] GameMode devModeOverride = GameMode.None; // None이면 스테이지 규칙 사용
+        [SerializeField] int   devTrialsOverride = 0;               // 0 이하 = 미사용
+        [SerializeField] float devAutoStartDelay = -1f;            // < 0 = 미사용
+        [SerializeField] bool devDeterministic = false;
+        [SerializeField] int  devRandomSeed = 12345;
+        [SerializeField] bool devVerboseLog = false;
+
+        // ---------- State ----------
         CampaignId _campaign;
         int _stage;
         GameMode _modePrimary;
@@ -52,13 +69,13 @@ namespace AuralRehab.Application {
         IPausableGame     _pausable;
         bool _gameStarted;
 
+        // Overlay
+        GameDebugOverlay _overlay;
+
         void Awake() {
             EnsureMainCamera();
             EnsureServiceHub();
-
-            _campaign = GameRouter.SelectedCampaign;
-            _stage    = Mathf.Clamp(GameRouter.SelectedStage, 1, 8);
-            (_modePrimary, _modeAlt) = ResolveModes(_campaign, _stage);
+            ApplyDevRouting();
 
             ApplyFontIfSet(headerText);
             ApplyFontIfSet(hintText);
@@ -72,15 +89,48 @@ namespace AuralRehab.Application {
             if (settingsModal) settingsModal.Setup(OnCloseMenu, OnRetry, OnExitToStageSelect);
 
             headerText.text = BuildHeaderLabel(_campaign, _stage, _modePrimary, _modeAlt);
-            ServiceHub.I.Caption.ShowTop($"게임이 {autoStartDelay:0}초 후 자동 시작됩니다.");
+            ServiceHub.I.Caption.ShowTop($"게임이 {GetAutoStartDelay():0}초 후 자동 시작됩니다.");
             if (btnStart) btnStart.gameObject.SetActive(false);
+
+            if (devMode && devShowOverlay) {
+                _overlay = GameDebugOverlay.Create(transform, uiFont);
+                _overlay.Bind(this);
+            }
         }
 
         void Start() { StartCoroutine(AutoStartAfterDelay()); }
 
+        // ---------- Dev Routing ----------
+        void ApplyDevRouting() {
+            if (devMode && devDeterministic) UnityEngine.Random.InitState(devRandomSeed);
+
+            _campaign = GameRouter.SelectedCampaign;
+            _stage    = Mathf.Clamp(GameRouter.SelectedStage, 1, 8);
+
+            if (devMode && devOverrideRoute) {
+                _campaign = devCampaign;
+                _stage    = Mathf.Clamp(devStage, 1, 8);
+            }
+
+            (_modePrimary, _modeAlt) = ResolveModes(_campaign, _stage);
+
+            if (devMode && devOverrideRoute && devModeOverride != GameMode.None) {
+                _modePrimary = devModeOverride;
+                _modeAlt     = GameMode.None;
+            }
+
+            if (devMode && devTrialsOverride > 0) trialsPerGame = devTrialsOverride;
+            if (devMode && devAutoStartDelay >= 0f) autoStartDelay = devAutoStartDelay;
+
+            LogDev($"Route = {_campaign}/{_stage} • Mode={_modePrimary}{(_modeAlt!=GameMode.None?("+"+_modeAlt):"")}, Trials={trialsPerGame}, Delay={autoStartDelay:0.##}");
+        }
+
+        float GetAutoStartDelay() => Mathf.Max(0f, autoStartDelay);
+
         IEnumerator AutoStartAfterDelay() {
             float t = 0f;
-            while (t < autoStartDelay) { t += Time.unscaledDeltaTime; yield return null; }
+            float wait = GetAutoStartDelay();
+            while (t < wait) { t += Time.unscaledDeltaTime; yield return null; }
             if (!_gameStarted) OnStartGame();
         }
 
@@ -130,17 +180,18 @@ namespace AuralRehab.Application {
         // ---------------- G1 ----------------
         void RunG1() {
             if (_g1 == null) _g1 = CreateG1(playArea);
-
             int interval = GetIntervalForStage(_campaign, _stage);
-            _g1.SetInterval(interval);
-            _g1.SetUseUnscaledTime(true);
-            _pausable = _g1;
+            SafeInvoke.TryCall(_g1, "SetInterval", interval);
+            SafeInvoke.TryCall(_g1, "SetUseUnscaledTime", true);
+            SafeInvoke.SetTrialsIfSupported(_g1, GetTrials());
 
-            _g1.OnGameFinished = OnCommonFinished;
+            _pausable = _g1 as IPausableGame;
+            // 결과 콜백 바인딩(있을 때만)
+            SafeInvoke.TryAssignAction(_g1, "OnGameFinished", new Action<int,int,float>(OnCommonFinished));
 
             ServiceHub.I.Caption.ShowTop("각 선택지의 소리를 듣고, 다른 소리를 고르세요.");
             _g1.gameObject.SetActive(true);
-            _g1.StartGame();
+            SafeInvoke.TryCall(_g1, "StartGame");
         }
         G1OddOneOutPitch CreateG1(RectTransform mount) {
             G1OddOneOutPitch inst = null;
@@ -150,18 +201,16 @@ namespace AuralRehab.Application {
             return inst;
         }
         int GetIntervalForStage(CampaignId id, int stage) {
-            // A: 1=완전5도, 2=장3도, 3=장2도, 4=반음
             switch (stage) { case 1: return 7; case 2: return 4; case 3: return 2; default: return 1; }
         }
 
         // ---------------- G2 ----------------
         void RunG2() {
             if (_g2 == null) _g2 = CreateG2(playArea);
-
             var t = GetG2TaskForStage(_campaign, _stage);
             _g2.SetTask(t);
             _g2.SetStep(2);
-            _g2.SetTotalTrials(trialsPerGame);
+            SafeInvoke.SetTrialsIfSupported(_g2, GetTrials());
             _g2.SetUseUnscaledTime(true);
             var labels = GetG2Labels(t);
             _g2.ConfigureLabels(labels.left, labels.right, labels.prompt);
@@ -198,15 +247,13 @@ namespace AuralRehab.Application {
         void RunG3() {
             if (_g3 == null) _g3 = CreateG3(playArea);
 
-            // 스테이지별 패턴/튜닝 주입
             var patterns = GetG3PatternsForStage(_campaign, _stage);
-            float hitWindow, reqRatio;
-            GetG3TuningForStage(_campaign, _stage, out hitWindow, out reqRatio);
+            float hitWindow, reqRatio; GetG3TuningForStage(_campaign, _stage, out hitWindow, out reqRatio);
 
             _g3.SetPatterns(patterns);
             _g3.SetHitWindowSeconds(hitWindow);
             _g3.SetRequiredHitRatio(reqRatio);
-            _g3.SetTotalTrials(Mathf.Min(trialsPerGame, patterns.Count));
+            SafeInvoke.SetTrialsIfSupported(_g3, Mathf.Min(GetTrials(), patterns.Count));
             _g3.SetUseUnscaledTime(true);
 
             _pausable = _g3;
@@ -216,7 +263,6 @@ namespace AuralRehab.Application {
             _g3.gameObject.SetActive(true);
             _g3.StartGame();
         }
-
         G3BeatJump CreateG3(RectTransform mount) {
             G3BeatJump inst = null;
             if (g3Prefab != null) inst = Instantiate(g3Prefab, mount);
@@ -224,56 +270,24 @@ namespace AuralRehab.Application {
             if (inst == null) inst = gameObject.AddComponent<G3BeatJump>();
             return inst;
         }
-
         List<G3BeatJump.Pattern> GetG3PatternsForStage(CampaignId id, int stage) {
             var list = new List<G3BeatJump.Pattern>();
-            // 캠페인 B: 1~4가 G3
             if (id != CampaignId.B) { list.Add(new G3BeatJump.Pattern(4, 60)); return list; }
-
             switch (Mathf.Clamp(stage, 1, 4)) {
-                case 1: // 기본 4박자, BPM 60 중심
-                    list.Add(new G3BeatJump.Pattern(4, 60));
-                    list.Add(new G3BeatJump.Pattern(4, 60));
-                    list.Add(new G3BeatJump.Pattern(5, 60));
-                    list.Add(new G3BeatJump.Pattern(6, 60));
-                    list.Add(new G3BeatJump.Pattern(4, 70));
-                    break;
-                case 2: // 속도 변화(70~85)
-                    list.Add(new G3BeatJump.Pattern(4, 70));
-                    list.Add(new G3BeatJump.Pattern(5, 70));
-                    list.Add(new G3BeatJump.Pattern(4, 80));
-                    list.Add(new G3BeatJump.Pattern(6, 80));
-                    list.Add(new G3BeatJump.Pattern(5, 85));
-                    break;
-                case 3: // 긴 패턴(80~90, 8~10박)
-                    list.Add(new G3BeatJump.Pattern(8, 80));
-                    list.Add(new G3BeatJump.Pattern(6, 85)); // 빠르게 6박
-                    list.Add(new G3BeatJump.Pattern(9, 88));
-                    list.Add(new G3BeatJump.Pattern(10, 90));
-                    list.Add(new G3BeatJump.Pattern(8, 90));
-                    break;
-                case 4: // 빠른 템포(100~120)
-                default:
-                    list.Add(new G3BeatJump.Pattern(4, 100));
-                    list.Add(new G3BeatJump.Pattern(6, 110));
-                    list.Add(new G3BeatJump.Pattern(4, 120));
-                    list.Add(new G3BeatJump.Pattern(5, 120));
-                    list.Add(new G3BeatJump.Pattern(8, 110));
-                    break;
+                case 1: list.AddRange(new[]{ new G3BeatJump.Pattern(4,60), new G3BeatJump.Pattern(4,60), new G3BeatJump.Pattern(5,60), new G3BeatJump.Pattern(6,60), new G3BeatJump.Pattern(4,70)}); break;
+                case 2: list.AddRange(new[]{ new G3BeatJump.Pattern(4,70), new G3BeatJump.Pattern(5,70), new G3BeatJump.Pattern(4,80), new G3BeatJump.Pattern(6,80), new G3BeatJump.Pattern(5,85)}); break;
+                case 3: list.AddRange(new[]{ new G3BeatJump.Pattern(8,80), new G3BeatJump.Pattern(6,85), new G3BeatJump.Pattern(9,88), new G3BeatJump.Pattern(10,90), new G3BeatJump.Pattern(8,90)}); break;
+                default:list.AddRange(new[]{ new G3BeatJump.Pattern(4,100),new G3BeatJump.Pattern(6,110),new G3BeatJump.Pattern(4,120),new G3BeatJump.Pattern(5,120),new G3BeatJump.Pattern(8,110)}); break;
             }
             return list;
         }
-
         void GetG3TuningForStage(CampaignId id, int stage, out float hitWindow, out float requiredRatio) {
-            // 난이도에 따라 허용오차/요구정확도 조정
             if (id != CampaignId.B) { hitWindow = 0.15f; requiredRatio = 0.6f; return; }
-
             switch (Mathf.Clamp(stage, 1, 4)) {
                 case 1: hitWindow = 0.18f; requiredRatio = 0.55f; break;
                 case 2: hitWindow = 0.15f; requiredRatio = 0.60f; break;
                 case 3: hitWindow = 0.12f; requiredRatio = 0.65f; break;
-                case 4:
-                default: hitWindow = 0.10f; requiredRatio = 0.70f; break;
+                default:hitWindow = 0.10f; requiredRatio = 0.70f; break;
             }
         }
 
@@ -285,25 +299,26 @@ namespace AuralRehab.Application {
             var summary = new GameResultBus.Summary {
                 campaign = _campaign, stage = _stage,
                 totalTrials = total, correct = correct,
-                avgReaction = avgMetric, // G1/G2는 평균 반응시간, G3는 평균 오차(초)를 재사용
+                avgReaction = avgMetric,
                 success = success
             };
             GameResultBus.Set(summary);
             ShowResult(summary);
+            _overlay?.NotifyResult(summary);
         }
 
         // -------------- Stub (G4~G6 교체 예정) --------------
         void RunTwoChoiceStub(GameMode mode) {
             if (_two == null) _two = CreateTwoChoice(playArea);
-
             var labels = GetLabelsForMode(mode);
-            _two.ConfigureLabels(labels.left, labels.right, labels.prompt);
-            _pausable = _two;
+            SafeInvoke.TryCall(_two, "ConfigureLabels", labels.left, labels.right, labels.prompt);
+            SafeInvoke.SetTrialsIfSupported(_two, GetTrials());
 
-            _two.OnGameFinished = OnCommonFinished;
+            _pausable = _two as IPausableGame;
+            SafeInvoke.TryAssignAction(_two, "OnGameFinished", new Action<int,int,float>(OnCommonFinished));
 
             ServiceHub.I.Caption.ShowTop("문제를 보고 정답을 고르세요.");
-            _two.StartGame();
+            SafeInvoke.TryCall(_two, "StartGame");
         }
         TwoChoiceMinigame CreateTwoChoice(RectTransform mount) {
             TwoChoiceMinigame inst = null;
@@ -380,6 +395,99 @@ namespace AuralRehab.Application {
                 case GameMode.G5: return ("악기1", "악기2", "다른 악기를 고르세요");
                 case GameMode.G6: return ("정답", "오답", "악기 소리를 맞히세요");
                 default:          return ("A", "B", "정답을 고르세요");
+            }
+        }
+        int GetTrials() => Mathf.Max(1, trialsPerGame);
+
+        void LogDev(string msg) { if (devMode && devVerboseLog) Debug.Log($"[GameHost] {msg}"); }
+
+        // ---------- Dev Shortcuts ----------
+        void Update() {
+            if (!devMode) return;
+
+            if (Input.GetKeyDown(KeyCode.F1)) _overlay?.ToggleVisible();
+            if (Input.GetKeyDown(KeyCode.F2)) OnRetry();
+            if (Input.GetKeyDown(KeyCode.F3)) { GameRouter.SelectStage(Mathf.Clamp(_stage + 1, 1, 8)); SceneManager.LoadScene(Scenes.Game); }
+            if (Input.GetKeyDown(KeyCode.F4)) { GameRouter.SelectStage(Mathf.Clamp(_stage - 1, 1, 8)); SceneManager.LoadScene(Scenes.Game); }
+            if (Input.GetKeyDown(KeyCode.F5)) {
+                var next = (CampaignId)(((int)_campaign + 1) % 3);
+                GameRouter.SelectCampaign(next);
+                SceneManager.LoadScene(Scenes.Game);
+            }
+            if (Input.GetKeyDown(KeyCode.P)) {
+                if (_pausable != null) {
+                    if (_pausable.IsPaused) _pausable.Resume();
+                    else _pausable.Pause();
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.BackQuote)) {
+                Time.timeScale = (Mathf.Abs(Time.timeScale - 1f) < 0.01f) ? 0.2f : 1f;
+                ServiceHub.I.Caption.ShowTop($"TimeScale {Time.timeScale:0.##}");
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha1)) ForceModeAndReload(GameMode.G1);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) ForceModeAndReload(GameMode.G2);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) ForceModeAndReload(GameMode.G3);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) ForceModeAndReload(GameMode.G4);
+            if (Input.GetKeyDown(KeyCode.Alpha5)) ForceModeAndReload(GameMode.G5);
+            if (Input.GetKeyDown(KeyCode.Alpha6)) ForceModeAndReload(GameMode.G6);
+
+            if (_overlay) _overlay.Tick(this, _pausable, _g1, _g2, _g3);
+        }
+
+        void ForceModeAndReload(GameMode m) {
+            devOverrideRoute = true; devModeOverride = m;
+            GameRouter.SelectStage(_stage);
+            GameRouter.SelectCampaign(_campaign);
+            SceneManager.LoadScene(Scenes.Game);
+        }
+
+        // ---------- 안전 호출 유틸 ----------
+        static class SafeInvoke {
+            public static bool TryCall(object target, string methodName, params object[] args) {
+                if (target == null) return false;
+                var t = target.GetType();
+                var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                foreach (var m in methods) {
+                    if (m.Name != methodName) continue;
+                    var ps = m.GetParameters();
+                    if (ps.Length != args.Length) continue;
+                    bool ok = true;
+                    for (int i = 0; i < ps.Length; i++) {
+                        if (args[i] == null) continue;
+                        if (!ps[i].ParameterType.IsAssignableFrom(args[i].GetType())) { ok = false; break; }
+                    }
+                    if (!ok) continue;
+                    m.Invoke(target, args);
+                    return true;
+                }
+                return false;
+            }
+            public static bool TrySet(object target, string member, object value) {
+                if (target == null) return false;
+                var t = target.GetType();
+                var prop = t.GetProperty(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (prop != null && prop.CanWrite) { prop.SetValue(target, value); return true; }
+                var field = t.GetField(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null) { field.SetValue(target, value); return true; }
+                return false;
+            }
+            public static void SetTrialsIfSupported(object target, int n) {
+                if (TryCall(target, "SetTotalTrials", n)) return;
+                if (TryCall(target, "SetTrials", n)) return;
+                if (TrySet(target, "totalTrials", n)) return;
+                if (TrySet(target, "Trials", n)) return;
+                if (TrySet(target, "trialCount", n)) return;
+            }
+            public static bool TryAssignAction(object target, string fieldOrProp, Delegate del) {
+                if (target == null) return false;
+                var t = target.GetType();
+                // Property 우선
+                var prop = t.GetProperty(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (prop != null && prop.CanWrite) { prop.SetValue(target, del); return true; }
+                // Field
+                var field = t.GetField(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null) { field.SetValue(target, del); return true; }
+                return false;
             }
         }
     }

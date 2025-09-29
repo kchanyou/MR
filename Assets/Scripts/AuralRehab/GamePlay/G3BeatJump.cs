@@ -6,18 +6,20 @@ using TMPro;
 
 namespace AuralRehab.GamePlay {
     /// <summary>
-    /// G3: 박자에 맞춰 탭하기 (프리뷰 → 간격 → 스코어링)
-    /// - 프리뷰: 카운트인+패턴 재생, 입력/판정 없음
-    /// - 간격(gapAfterPreview) 대기
-    /// - 스코어링: (옵션 카운트인 후) 동일 패턴 재생, 입력/판정 활성
-    /// - 인스펙터에서 오디오/시각/판정 타이밍을 보정 가능
+    /// G3: 박자에 맞춰 탭하기
+    /// Flow: [프리뷰] → gapAfterPreview → [스코어링(필요 시 큐 사운드→1박 후 첫 비트)] → gapBeforePreview → 다음 트라이얼
+    /// - 프리뷰: 패턴 비트 수(p.beats)만큼 들려줌(기본, 카운트인 없음)
+    /// - 스코어링 시작 신호(큐): 해당 BPM의 1박 간격으로 첫 비트와 등간격 정렬
+    ///   · count-in=0 → 내부적으로 1박 카운트인 추가(무음), 그 지점에 큐 사운드만 재생
+    ///   · count-in>0 & showCueEvenWithCountIn → 마지막 count-in 비트를 큐 사운드로 대체(등간격 유지)
+    /// - 인스펙터에서 오디오/시각/판정 보정 및 각 구간 공백시간 조정 가능
     /// </summary>
     public class G3BeatJump : MonoBehaviour, IPausableGame {
         [System.Serializable]
         public struct Pattern {
-            public int beats;   // 패턴 비트 수
+            public int beats;   // 패턴 비트 수(= 스코어링 탭 횟수)
             public int bpm;     // BPM
-            public bool accentFirst; // 첫 박 강세
+            public bool accentFirst;
             public Pattern(int beats, int bpm, bool accentFirst = true) {
                 this.beats = Mathf.Max(1, beats);
                 this.bpm = Mathf.Max(20, bpm);
@@ -29,17 +31,17 @@ namespace AuralRehab.GamePlay {
         [SerializeField] TMP_Text promptText;
         [SerializeField] TMP_Text progressText;
         [SerializeField] TMP_Text bpmText;
-        [SerializeField] Button   tapButton;      // 큰 탭 버튼
+        [SerializeField] Button   tapButton;
 
         [Header("Visual Pulse (Optional)")]
-        [SerializeField] Image    pulseImage;     // 비주얼 펄스(선택)
+        [SerializeField] Image    pulseImage;
 
         [Header("Track Visuals")]
-        [SerializeField] RectTransform beatTrack; // 가로 트랙
-        [SerializeField] Image markerPrefab;      // 비트 마커 프리팹(Image)
-        [SerializeField] RectTransform cursor;    // 진행 커서(작은 이미지 Rect)
-        [SerializeField] TMP_Text countInText;    // 3,2,1,Go
-        [SerializeField] TMP_Text judgeText;      // Perfect/Good/Ok/Miss
+        [SerializeField] RectTransform beatTrack;
+        [SerializeField] Image markerPrefab;
+        [SerializeField] RectTransform cursor;
+        [SerializeField] TMP_Text countInText;
+        [SerializeField] TMP_Text judgeText;
 
         [Header("Track Colors")]
         [SerializeField] Color markerIdle  = new Color(1f, 1f, 1f, 0.35f);
@@ -55,15 +57,32 @@ namespace AuralRehab.GamePlay {
         [SerializeField, Range(0.05f, 1.0f)] float judgeFadeDuration = 0.25f;
 
         [Header("Audio (Metronome)")]
-        [SerializeField] AudioSource audioSource; // OneShot 재생 권장
+        [SerializeField] AudioSource audioSource;
         [SerializeField] AudioClip   clickNormal;
         [SerializeField] AudioClip   clickAccent;
 
         [Header("Timing (Core)")]
-        [SerializeField, Range(0.05f, 0.30f)] float hitWindow = 0.15f;     // 허용오차(초)
-        [SerializeField, Range(0.00f, 2.00f)] float preTrialDelay = 0.25f; // 트라이얼 시작 전 대기
-        [SerializeField] int countInBeats = 4;                              // 프리뷰 카운트인 박 수
+        [SerializeField, Range(0.05f, 0.30f)] float hitWindow = 0.15f;
+        [SerializeField, Range(0.00f, 2.00f)] float preTrialDelay = 0.25f; // 첫 프리뷰 전만 사용
+        [SerializeField] int countInBeats = 4;
         [SerializeField] bool useUnscaledTime = true;
+
+        [Header("Preview Options")]
+        [Tooltip("프리뷰에서도 카운트인을 사용할지(기본 끔). 끄면 p.beats 만큼만 들려줍니다.")]
+        [SerializeField] bool previewUseCountIn = false;
+
+        [Header("Scoring Cue (Start Signal)")]
+        [Tooltip("스코어링 시작 직전에 큐 사운드를 재생합니다. 첫 비트와의 간격은 BPM의 1박입니다.")]
+        [SerializeField] bool useScoringCue = true;
+        [Tooltip("count-in이 있어도 마지막 count-in 비트를 큐 사운드로 대체합니다.")]
+        [SerializeField] bool showCueEvenWithCountIn = false;
+        [SerializeField] AudioClip scoringCueClip;
+        [SerializeField, Range(0f, 1f)] float scoringCueVolume = 1f;
+        [Tooltip("큐 텍스트를 표시할 TMP. 비워두면 텍스트 미표시.")]
+        [SerializeField] TMP_Text scoringCueText;
+        [SerializeField] string scoringCueMessage = "시작";
+        [SerializeField] Color scoringCueColor = Color.white;
+        [SerializeField, Range(0.1f, 2f)] float scoringCueDuration = 0.6f;
 
         [Header("Timing (Compensation & Flow)")]
         [Tooltip("오디오 클릭을 미리 내보낼 시간(초). 오디오가 늦게 들리면 값을 늘리세요.")]
@@ -72,48 +91,58 @@ namespace AuralRehab.GamePlay {
         [SerializeField, Range(-0.2f, 0.2f)] float visualAdvance = 0f;
         [Tooltip("판정 타이밍을 이동(초). 오디오가 늦게 들리면 값을 늘리세요(= 목표시각을 뒤로).")]
         [SerializeField, Range(-0.2f, 0.2f)] float judgeTimeOffset = 0f;
-        [Tooltip("프리뷰가 끝난 뒤 스코어링 시작까지 간격(초). 구분감 부여용.")]
-        [SerializeField, Range(0f, 3f)] float gapAfterPreview = 1.0f;
-        [Tooltip("스코어링 패스에 사용할 카운트인 박 수(0=없음).")]
+
+        [Tooltip("프리뷰가 끝난 뒤 스코어링 시작까지 무음 간격(초).")]
+        [SerializeField, Range(0f, 3f)] float gapAfterPreview = 2.0f;
+
+        [Tooltip("스코어링이 끝난 뒤 다음 프리뷰 시작까지 무음 간격(초).")]
+        [SerializeField, Range(0f, 3f)] float gapBeforePreview = 2.0f;
+
+        [Tooltip("스코어링 패스의 카운트인 박 수(0=없음).")]
         [SerializeField, Range(0, 8)] int scoringCountInBeats = 0;
 
         [Header("Rules")]
         [SerializeField, Min(1)] int totalTrials = 8;
-        [SerializeField, Range(0.1f, 1f)] float requiredHitRatio = 0.6f; // 트라이얼 성공 기준
+        [SerializeField, Range(0.1f, 1f)] float requiredHitRatio = 0.6f;
 
-        // 외부에서 스테이지별 패턴을 세팅
+        // 패턴
         List<Pattern> _patterns = new List<Pattern>();
 
         // 상태(게임 전체)
         int   _trialIndex;
-        float _sumAvgAbsErr; // 트라이얼 평균 오차 누적
-        int   _trialCorrectCount; // 성공한 트라이얼 수
+        float _sumAvgAbsErr;
+        int   _trialCorrectCount;
         bool  _paused;
 
-        // 상태(패스 단위: 프리뷰/스코어링)
+        // 상태(패스)
         bool  _acceptInput;
-        float _elapsed;                   // 이 패스 경과 시간
-        int   _countInThisPass;           // 카운트인(이 패스)
-        List<float> _beatTimes = new List<float>(); // 이 패스의 모든 목표시각(카운트인+본 비트)
+        float _elapsed;
+        int   _countInThisPass;
+        List<float> _beatTimes = new List<float>();
 
-        // 스코어링용 버퍼(스코어링 패스에서만 사이즈 > 0)
-        bool[] _hit;    // 각 본 비트의 적중 여부(스코어링)
-        bool[] _miss;   // 각 본 비트의 미스 여부(윈도 지남)
-        float[] _err;   // 각 본 비트의 절대오차
+        // 스코어링 버퍼
+        bool[] _hit;
+        bool[] _miss;
+        float[] _err;
 
-        // 시각화(마커)
-        readonly List<Image> _markers = new List<Image>(); // 본 비트 개수만큼 생성
+        // 시각화
+        readonly List<Image> _markers = new List<Image>();
         RectTransform _trackRect;
-        float _patternStartT; // 본 비트 첫 시각(이 패스 기준)
-        float _patternEndT;   // 본 비트 마지막 시각(이 패스 기준)
+        float _patternStartT;
+        float _patternEndT;
 
         // UI 효과 원본
         Color _pulseOrigColor = Color.white;
         Vector3 _pulseOrigScale = Vector3.one;
         Coroutine _coJudge;
 
-        public System.Action<int, bool, float> OnTrialEnd;     // (trial#, success, trialAvgAbsErr)
-        public System.Action<int, int, float> OnGameFinished;  // (totalTrials, correctTrials, avgAbsErrAcrossTrials)
+        // 큐/카운트인 제어 플래그(패스별)
+        bool _muteCountInAll;          // count-in 전체를 무음으로(=메트로놈 미재생)
+        bool _cueOnLastCountInOnly;    // 마지막 count-in만 메트로놈 대신 큐 재생
+        bool _playCueThisBeat;         // 현재 count-in 비트에서 큐를 재생해야 하는가
+
+        public System.Action<int, bool, float> OnTrialEnd;
+        public System.Action<int, int, float> OnGameFinished;
 
         void Awake() {
             if (tapButton) tapButton.onClick.AddListener(OnTap);
@@ -124,6 +153,7 @@ namespace AuralRehab.GamePlay {
             if (promptText && string.IsNullOrEmpty(promptText.text)) promptText.text = "비트에 맞춰 탭하세요";
             if (judgeText) { judgeText.text = ""; judgeText.alpha = 0f; }
             if (countInText) { countInText.text = ""; countInText.alpha = 0f; }
+            if (scoringCueText) { scoringCueText.text = ""; scoringCueText.alpha = 0f; }
             _trackRect = beatTrack ? beatTrack : null;
         }
 
@@ -156,27 +186,47 @@ namespace AuralRehab.GamePlay {
                 UpdateProgressText();
                 AuralRehab.Application.ServiceHub.I.Caption.ShowTop($"{pattern.bpm} BPM • 프리뷰 후 따라 탭하세요");
 
-                // 1) 프리뷰 패스 (카운트인 = countInBeats, 입력/판정 없음)
-                BuildTimeline(pattern, countInBeats);
-                BuildOrRefreshMarkers(pattern);            // 마커는 프리뷰에도 생성/정렬(색상 idle)
+                // 1) 프리뷰 패스
+                BuildTimeline(pattern, previewUseCountIn ? Mathf.Max(0, countInBeats) : 0);
+                BuildOrRefreshMarkers(pattern);
+                if (tapButton) tapButton.interactable = false; // 프리뷰 동안 입력 금지
                 yield return RunPass(pattern, scoring:false);
 
-                // 2) 간격 대기
+                // 2) 프리뷰→스코어링 무음 간격
+                if (tapButton) tapButton.interactable = false;
                 yield return WaitSmart(Mathf.Max(0f, gapAfterPreview));
 
-                // 3) 스코어링 패스 (카운트인 = scoringCountInBeats, 입력/판정 포함)
-                BuildTimeline(pattern, Mathf.Max(0, scoringCountInBeats));
-                // 스코어링 버퍼 초기화
+                // 3) 스코어링 패스 준비: 큐/카운트인 모드 결정
+                int passCI = Mathf.Max(0, scoringCountInBeats);
+                _muteCountInAll = false;
+                _cueOnLastCountInOnly = false;
+
+                bool wantCue = useScoringCue && (showCueEvenWithCountIn || passCI == 0);
+                if (wantCue) {
+                    if (passCI == 0) {
+                        // count-in이 없는 경우 → 내부적으로 1박 count-in 추가하고 그 비트에서 큐만 재생
+                        passCI = 1;
+                        _muteCountInAll = true;          // count-in 메트로놈 클릭 미재생
+                        _cueOnLastCountInOnly = true;    // 단 하나의 count-in(=마지막)에서 큐 재생
+                    } else {
+                        // count-in이 있는 경우 → 마지막 count-in 비트에서 메트로놈 대신 큐 재생
+                        _muteCountInAll = false;         // 앞선 count-in은 메트로놈/숫자 노출
+                        _cueOnLastCountInOnly = true;
+                    }
+                }
+
+                // 3) 타임라인 구성
+                BuildTimeline(pattern, passCI);
                 _hit  = new bool[pattern.beats];
                 _miss = new bool[pattern.beats];
                 _err  = new float[pattern.beats];
                 for (int i = 0; i < pattern.beats; i++) { _hit[i] = false; _miss[i] = false; _err[i] = 0f; }
-                // 마커 색 초기화
                 ResetMarkersToIdle(pattern.beats);
 
+                // 4) 스코어링 패스 실행
                 yield return RunPass(pattern, scoring:true);
 
-                // 성과 집계(스코어링 패스 결과)
+                // 5) 성과 집계
                 int hits = 0; float sumErr = 0f;
                 for (int i = 0; i < _hit.Length; i++) if (_hit[i]) { hits++; sumErr += _err[i]; }
                 float hitRatio = (_hit.Length > 0) ? (hits / (float)_hit.Length) : 0f;
@@ -190,7 +240,13 @@ namespace AuralRehab.GamePlay {
                 _trialIndex++;
 
                 UpdateProgressText();
-                yield return WaitSmart(preTrialDelay);
+
+                // 6) 스코어링→다음 프리뷰 무음 간격
+                if (_trialIndex < totalTrials) {
+                    _acceptInput = false;
+                    if (tapButton) tapButton.interactable = false;
+                    yield return WaitSmart(Mathf.Max(0f, gapBeforePreview));
+                }
             }
 
             float gameAvgErr = (_trialIndex > 0) ? (_sumAvgAbsErr / _trialIndex) : 0f;
@@ -206,22 +262,22 @@ namespace AuralRehab.GamePlay {
 
             float interval = 60f / Mathf.Max(20, p.bpm);
 
-            // 카운트인
+            // 카운트인(필요 시)
             for (int i = 0; i < _countInThisPass; i++) {
                 _beatTimes.Add(i * interval);
             }
             _patternStartT = (_beatTimes.Count > 0) ? _beatTimes[_beatTimes.Count - 1] + interval : 0f;
 
-            // 본 비트
+            // 본 비트: p.beats 만큼
             for (int i = 0; i < p.beats; i++) {
                 _beatTimes.Add(_patternStartT + i * interval);
             }
             _patternEndT = _patternStartT + (p.beats - 1) * interval;
 
-            // UI 초기화
             if (judgeText) { judgeText.text = ""; judgeText.alpha = 0f; }
-            if (cursor) cursor.gameObject.SetActive(_trackRect != null);
+            if (cursor) cursor.gameObject.SetActive(beatTrack != null);
             if (countInText) { countInText.text = ""; countInText.alpha = 0f; }
+            if (scoringCueText) { scoringCueText.text = ""; scoringCueText.alpha = 0f; }
         }
 
         // ---- 마커 생성/정렬/초기화 ----
@@ -260,34 +316,53 @@ namespace AuralRehab.GamePlay {
 
         // ---- 패스 실행(프리뷰/스코어링 공용) ----
         IEnumerator RunPass(Pattern p, bool scoring) {
-            // 오디오/비주얼 트리거 인덱스(카운트인+본비트 공통 타임라인 사용)
             int nextAudio = 0;
             int nextVisual = 0;
-            int nextBeatForText = 0;
 
             float interval = 60f / Mathf.Max(20, p.bpm);
             bool inputJustEnabled = false;
 
+            if (!scoring && tapButton) tapButton.interactable = false;
+
             while (true) {
                 if (!_paused) _elapsed += Dt();
 
-                // 커서 이동(본 비트 구간만)
                 UpdateCursor();
 
-                // ----- 오디오 트리거 (audioAdvance만큼 미리 재생) -----
+                // 오디오 트리거
                 while (nextAudio < _beatTimes.Count && _elapsed + 1e-5f >= _beatTimes[nextAudio] - audioAdvance) {
-                    bool accent;
-                    if (nextAudio < _countInThisPass) {
-                        accent = (nextAudio % Mathf.Max(1, _countInThisPass) == 0);
-                        ShowCountIn(nextAudio); // 카운트인 텍스트(프리뷰/스코어링 공용)
+                    bool isCountIn = nextAudio < _countInThisPass;
+                    _playCueThisBeat = false;
+
+                    if (isCountIn) {
+                        // count-in 처리(메트로놈 or 큐 대체)
+                        bool isLastCountIn = nextAudio == _countInThisPass - 1;
+
+                        if (_muteCountInAll) {
+                            // 전체 count-in 무음 → 마지막 비트에서만 큐 재생
+                            if (isLastCountIn) _playCueThisBeat = true;
+                        } else if (_cueOnLastCountInOnly && isLastCountIn) {
+                            // 정상 count-in이지만 마지막 비트는 큐로 대체
+                            _playCueThisBeat = true;
+                        }
+
+                        if (_playCueThisBeat) {
+                            PlayScoringCueOnce();
+                            // count-in 텍스트는 노출하지 않음(큐로 대체)
+                        } else {
+                            // 일반 count-in: 메트로놈 + 숫자 표기
+                            PlayClick(accent:false);
+                            ShowCountIn(nextAudio);
+                        }
                     } else {
-                        accent = p.accentFirst && ((nextAudio - _countInThisPass) % p.beats == 0);
+                        // 본 비트: 메트로놈
+                        bool accent = p.accentFirst && ((nextAudio - _countInThisPass) % p.beats == 0);
+                        PlayClick(accent);
                     }
-                    PlayClick(accent);
                     nextAudio++;
                 }
 
-                // ----- 비주얼 트리거 (visualAdvance만큼 미리) -----
+                // 비주얼 트리거
                 while (nextVisual < _beatTimes.Count && _elapsed + 1e-5f >= _beatTimes[nextVisual] - visualAdvance) {
                     bool isPatternBeat = (nextVisual >= _countInThisPass);
                     if (isPatternBeat) {
@@ -295,24 +370,24 @@ namespace AuralRehab.GamePlay {
                         HighlightMarker(idx, 0.08f, 1.12f);
                         Pulse(p.accentFirst && (idx % p.beats == 0), 0.08f, 1.08f);
                     } else {
-                        Pulse(false, 0.06f, 1.05f); // 카운트인 펄스(약하게)
+                        Pulse(false, 0.06f, 1.05f);
                     }
                     nextVisual++;
                 }
 
-                // ----- 카운트인 종료 → 입력 허용(스코어링 패스에서만) -----
+                // 스코어링 시작 시 입력 허용(= count-in 구간 종료 시)
                 if (scoring && !inputJustEnabled && _elapsed >= (_countInThisPass * interval) - 1e-5f) {
                     _acceptInput = true;
                     inputJustEnabled = true;
+                    if (tapButton) tapButton.interactable = true;
                     if (countInText) { countInText.text = ""; countInText.alpha = 0f; }
                 }
 
-                // ----- 스코어링: 미스 처리(판정 오프셋 고려) -----
+                // 스코어링: 미스 처리
                 if (scoring) UpdateMisses(p);
 
-                // 루프 종료: 모든 비주얼/오디오 처리 후, 타임라인 종료 판단
+                // 종료
                 if (nextVisual >= _beatTimes.Count && nextAudio >= _beatTimes.Count) {
-                    // 여유 약간
                     yield return WaitSmart(0.15f);
                     _acceptInput = false;
                     break;
@@ -336,7 +411,6 @@ namespace AuralRehab.GamePlay {
             cursor.anchoredPosition = new Vector2(Mathf.Lerp(0f, w, t01), cursor.anchoredPosition.y);
         }
 
-        // 판정/미스는 judgeTimeOffset을 반영한 목표시각으로 처리
         float JudgeBeatTime(int beatIdxInPattern) {
             return _beatTimes[_countInThisPass + beatIdxInPattern] + judgeTimeOffset;
         }
@@ -420,6 +494,19 @@ namespace AuralRehab.GamePlay {
             audioSource.PlayOneShot(clip, 1f);
         }
 
+        void PlayScoringCueOnce() {
+            if (audioSource && scoringCueClip) {
+                audioSource.PlayOneShot(scoringCueClip, Mathf.Clamp01(scoringCueVolume));
+            }
+            if (scoringCueText) {
+                scoringCueText.color = scoringCueColor;
+                scoringCueText.text = scoringCueMessage;
+                scoringCueText.alpha = 1f;
+                StopCoroutine(nameof(CoFadeTMP));
+                StartCoroutine(CoFadeTMP(scoringCueText, scoringCueDuration));
+            }
+        }
+
         void Pulse(bool accent, float dur, float scale) {
             if (!pulseImage) return;
             StopCoroutine(nameof(CoPulse));
@@ -446,7 +533,7 @@ namespace AuralRehab.GamePlay {
             tg.transform.localScale = _pulseOrigScale;
         }
 
-        // ---- 입력 처리 & 판정 ----
+        // ---- 입력 & 판정 ----
         void OnTap() {
             if (!_acceptInput || _paused || _hit == null) return;
 
@@ -458,7 +545,7 @@ namespace AuralRehab.GamePlay {
 
             for (int i = 0; i < beats; i++) {
                 if (_hit[i] || _miss[i]) continue;
-                float bt = JudgeBeatTime(i); // 판정 시간 오프셋 반영
+                float bt = JudgeBeatTime(i);
                 float d = Mathf.Abs(tNow - bt);
                 if (d < bestAbs) { bestAbs = d; bestIdx = i; }
             }
@@ -476,9 +563,9 @@ namespace AuralRehab.GamePlay {
         }
 
         Color ColorForError(float absErr) {
-            if (absErr <= 0.05f) return markerHit;                 // 초록
-            if (absErr <= 0.10f) return new Color(0.5f, 0.9f, 1f); // 하늘색
-            return new Color(1f, 0.85f, 0.5f);                     // 노랑
+            if (absErr <= 0.05f) return markerHit;
+            if (absErr <= 0.10f) return new Color(0.5f, 0.9f, 1f);
+            return new Color(1f, 0.85f, 0.5f);
         }
 
         void ShowJudgeTextForError(float absErr) {
@@ -541,7 +628,7 @@ namespace AuralRehab.GamePlay {
         }
         public void Resume() {
             _paused = false;
-            if (tapButton && _acceptInput) tapButton.interactable = true;
+            if (tapButton) tapButton.interactable = _acceptInput;
             if (audioSource) audioSource.UnPause();
         }
         public bool IsPaused => _paused;
