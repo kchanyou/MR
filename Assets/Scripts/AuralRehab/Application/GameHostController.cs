@@ -10,11 +10,6 @@ using AuralRehab.Core.Data;
 using AuralRehab.GamePlay;
 
 namespace AuralRehab.Application {
-    /// <summary>
-    /// 게임 호스트(같은 씬 결과 오버레이 + 자동 시작 + 설정 모달)
-    /// - G1~G3 연결, G4~G6은 임시 스텁
-    /// - Dev/Debug: 인스펙터 오버라이드, 단축키, 오버레이
-    /// </summary>
     public class GameHostController : MonoBehaviour {
         [Header("UI Refs (Assign in Inspector)")]
         [SerializeField] TMP_FontAsset uiFont;
@@ -29,28 +24,28 @@ namespace AuralRehab.Application {
         [SerializeField] RectTransform playArea;
 
         [Header("Prefabs / Components")]
-        [SerializeField] G1OddOneOutPitch  g1Prefab;        // G1
-        [SerializeField] G2MelodyDirection g2Prefab;        // G2
-        [SerializeField] G3BeatJump        g3Prefab;        // G3
-        [SerializeField] TwoChoiceMinigame twoChoicePrefab; // 임시(기타 모드)
-        [SerializeField] ResultOverlay resultOverlay;       // 같은 씬 결과
-        [SerializeField] SettingsModal settingsModal;       // 설정 모달
+        [SerializeField] G1OddOneOutPitch  g1Prefab;
+        [SerializeField] G2MelodyDirection g2Prefab;
+        [SerializeField] G3BeatJump        g3Prefab;
+        [SerializeField] G4RhythmCopycat   g4Prefab;     // ★ 추가
+        [SerializeField] TwoChoiceMinigame twoChoicePrefab;
+        [SerializeField] ResultOverlay     resultOverlay;
+        [SerializeField] SettingsModal     settingsModal;
 
         [Header("Rules (Common)")]
         [SerializeField, Range(0f,1f)] float clearAccuracy = 0.6f;
         [SerializeField] int   trialsPerGame = 8;
         [SerializeField] float autoStartDelay = 3f;
 
-        // ---------- Dev / Debug ----------
         [Header("Dev / Debug (Optional)")]
         [SerializeField] bool devMode = false;
         [SerializeField] bool devShowOverlay = true;
         [SerializeField] bool devOverrideRoute = false;
         [SerializeField] CampaignId devCampaign = CampaignId.A;
         [SerializeField, Range(1,8)] int devStage = 1;
-        [SerializeField] GameMode devModeOverride = GameMode.None; // None이면 스테이지 규칙 사용
-        [SerializeField] int   devTrialsOverride = 0;               // 0 이하 = 미사용
-        [SerializeField] float devAutoStartDelay = -1f;            // < 0 = 미사용
+        [SerializeField] GameMode devModeOverride = GameMode.None;
+        [SerializeField] int   devTrialsOverride = 0;
+        [SerializeField] float devAutoStartDelay = -1f;
         [SerializeField] bool devDeterministic = false;
         [SerializeField] int  devRandomSeed = 12345;
         [SerializeField] bool devVerboseLog = false;
@@ -65,11 +60,11 @@ namespace AuralRehab.Application {
         G1OddOneOutPitch  _g1;
         G2MelodyDirection _g2;
         G3BeatJump        _g3;
+        G4RhythmCopycat   _g4;
         TwoChoiceMinigame _two;
         IPausableGame     _pausable;
         bool _gameStarted;
 
-        // Overlay
         GameDebugOverlay _overlay;
 
         void Awake() {
@@ -126,11 +121,9 @@ namespace AuralRehab.Application {
         }
 
         float GetAutoStartDelay() => Mathf.Max(0f, autoStartDelay);
-
         IEnumerator AutoStartAfterDelay() {
-            float t = 0f;
-            float wait = GetAutoStartDelay();
-            while (t < wait) { t += Time.unscaledDeltaTime; yield return null; }
+            float t=0f, wait=GetAutoStartDelay();
+            while (t<wait) { t += Time.unscaledDeltaTime; yield return null; }
             if (!_gameStarted) OnStartGame();
         }
 
@@ -142,24 +135,15 @@ namespace AuralRehab.Application {
                 cam.backgroundColor = Color.black;
             }
         }
-
         void EnsureServiceHub() {
-            if (ServiceHub.I == null) {
-                var go = new GameObject("ServiceHub");
-                go.AddComponent<ServiceHub>();
-            }
-            if (uiFont != null) {
+            if (ServiceHub.I == null) new GameObject("ServiceHub").AddComponent<ServiceHub>();
+            if (uiFont) {
                 ServiceHub.I.Caption.SetFont(uiFont);
                 var tmp = ServiceHub.I.Caption.GetComponentInChildren<TextMeshProUGUI>(true);
                 if (tmp && uiFont.material) tmp.fontSharedMaterial = uiFont.material;
             }
         }
-
-        void ApplyFontIfSet(TMP_Text t) {
-            if (!t || !uiFont) return;
-            t.font = uiFont;
-            if (uiFont.material) t.fontSharedMaterial = uiFont.material;
-        }
+        void ApplyFontIfSet(TMP_Text t) { if (!t || !uiFont) return; t.font=uiFont; if (uiFont.material) t.fontSharedMaterial=uiFont.material; }
 
         // ----------- Start / Pause -----------
         void OnStartGame() {
@@ -170,10 +154,10 @@ namespace AuralRehab.Application {
                 case GameMode.G1: RunG1(); break;
                 case GameMode.G2: RunG2(); break;
                 case GameMode.G3: RunG3(); break;
+                case GameMode.G4: RunG4(); break;   // ★ 추가
                 default:          RunTwoChoiceStub(_modePrimary); break;
             }
         }
-
         void OnOpenMenu() { _pausable?.Pause(); settingsModal?.Open(); }
         void OnCloseMenu() { settingsModal?.Close(); _pausable?.Resume(); }
 
@@ -186,7 +170,6 @@ namespace AuralRehab.Application {
             SafeInvoke.SetTrialsIfSupported(_g1, GetTrials());
 
             _pausable = _g1 as IPausableGame;
-            // 결과 콜백 바인딩(있을 때만)
             SafeInvoke.TryAssignAction(_g1, "OnGameFinished", new Action<int,int,float>(OnCommonFinished));
 
             ServiceHub.I.Caption.ShowTop("각 선택지의 소리를 듣고, 다른 소리를 고르세요.");
@@ -194,15 +177,11 @@ namespace AuralRehab.Application {
             SafeInvoke.TryCall(_g1, "StartGame");
         }
         G1OddOneOutPitch CreateG1(RectTransform mount) {
-            G1OddOneOutPitch inst = null;
-            if (g1Prefab != null) inst = Instantiate(g1Prefab, mount);
-            else inst = mount.GetComponentInChildren<G1OddOneOutPitch>(true);
-            if (inst == null) inst = gameObject.AddComponent<G1OddOneOutPitch>();
-            return inst;
+            if (g1Prefab) { var inst = Instantiate(g1Prefab, mount, false); UIUtil.ApplyPrefabRect(g1Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G1OddOneOutPitch>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G1_OddOneOut", mount); return host.gameObject.AddComponent<G1OddOneOutPitch>();
         }
-        int GetIntervalForStage(CampaignId id, int stage) {
-            switch (stage) { case 1: return 7; case 2: return 4; case 3: return 2; default: return 1; }
-        }
+        int GetIntervalForStage(CampaignId id, int stage) { switch (stage){ case 1: return 7; case 2: return 4; case 3: return 2; default: return 1; } }
 
         // ---------------- G2 ----------------
         void RunG2() {
@@ -223,11 +202,9 @@ namespace AuralRehab.Application {
             _g2.StartGame();
         }
         G2MelodyDirection CreateG2(RectTransform mount) {
-            G2MelodyDirection inst = null;
-            if (g2Prefab != null) inst = Instantiate(g2Prefab, mount);
-            else inst = mount.GetComponentInChildren<G2MelodyDirection>(true);
-            if (inst == null) inst = gameObject.AddComponent<G2MelodyDirection>();
-            return inst;
+            if (g2Prefab) { var inst = Instantiate(g2Prefab, mount, false); UIUtil.ApplyPrefabRect(g2Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G2MelodyDirection>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G2_MelodyDirection", mount); return host.gameObject.AddComponent<G2MelodyDirection>();
         }
         G2MelodyDirection.TaskType GetG2TaskForStage(CampaignId id, int stage) {
             if (id != CampaignId.A) return G2MelodyDirection.TaskType.UpDownSimple;
@@ -264,11 +241,9 @@ namespace AuralRehab.Application {
             _g3.StartGame();
         }
         G3BeatJump CreateG3(RectTransform mount) {
-            G3BeatJump inst = null;
-            if (g3Prefab != null) inst = Instantiate(g3Prefab, mount);
-            else inst = mount.GetComponentInChildren<G3BeatJump>(true);
-            if (inst == null) inst = gameObject.AddComponent<G3BeatJump>();
-            return inst;
+            if (g3Prefab) { var inst = Instantiate(g3Prefab, mount, false); UIUtil.ApplyPrefabRect(g3Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G3BeatJump>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G3_BeatJump", mount); return host.gameObject.AddComponent<G3BeatJump>();
         }
         List<G3BeatJump.Pattern> GetG3PatternsForStage(CampaignId id, int stage) {
             var list = new List<G3BeatJump.Pattern>();
@@ -291,6 +266,66 @@ namespace AuralRehab.Application {
             }
         }
 
+        // ---------------- G4 ----------------
+        void RunG4() {
+            if (_g4 == null) _g4 = CreateG4(playArea);
+
+            var patterns = GetG4PatternsForStage(_campaign, _stage);
+            _g4.SetPatterns(patterns);
+            _g4.SetUseUnscaledTime(true);
+            _g4.SetHitWindowSeconds(0.15f);
+            _g4.SetRequiredHitRatio(clearAccuracy);
+            _g4.SetTotalTrials(Mathf.Min(GetTrials(), patterns.Count));
+
+            _pausable = _g4;
+            _g4.OnGameFinished = OnCommonFinished;
+
+            ServiceHub.I.Caption.ShowTop("프리뷰 리듬을 듣고 같은 리듬으로 탭하세요.");
+            _g4.gameObject.SetActive(true);
+            _g4.StartGame();
+        }
+        G4RhythmCopycat CreateG4(RectTransform mount) {
+            if (g4Prefab) { var inst = Instantiate(g4Prefab, mount, false); UIUtil.ApplyPrefabRect(g4Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G4RhythmCopycat>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G4_RhythmCopy", mount); return host.gameObject.AddComponent<G4RhythmCopycat>();
+        }
+
+        List<G4RhythmCopycat.Pattern> GetG4PatternsForStage(CampaignId id, int stage) {
+            // 기획 표를 코드화: ♩=1, ♪=0.5, ♫(점8분)=0.75, 𝄽(쉼표)=isRest
+            // B 캠페인 5~7 레벨
+            var L = new List<G4RhythmCopycat.Pattern>();
+            if (id != CampaignId.B) { // 기본 예시
+                L.Add(Pat(80, N(1), N(0.5f), N(0.5f), N(1)));
+                return L;
+            }
+            if (stage <= 5) {
+                L.Add(Pat(80,  N(1),   N(0.5f), N(0.5f), N(1)));        // ♩ ♪♪ ♩
+                L.Add(Pat(80,  N(0.5f),N(0.5f),N(1),    N(0.5f),N(0.5f)));
+                L.Add(Pat(82,  N(1),   N(1),    N(0.5f),N(0.5f)));
+                L.Add(Pat(82,  N(0.5f),N(0.5f),N(0.5f),N(0.5f),N(1)));
+                L.Add(Pat(84,  N(1),   N(0.5f),N(0.5f),N(0.5f),N(0.5f)));
+            } else if (stage <= 6) {
+                L.Add(Pat(80,  N(1),   R(1),    N(1)));                 // ♩ 𝄽 ♩
+                L.Add(Pat(82,  N(0.5f),N(0.5f),R(1),    N(0.5f),N(0.5f)));
+                L.Add(Pat(84,  N(1),   R(1),    N(0.5f),N(0.5f),N(1)));
+                L.Add(Pat(84,  N(0.5f),N(0.5f),N(1),    R(1),    N(1)));
+                L.Add(Pat(86,  N(1),   N(0.5f),N(0.5f),R(1),    N(0.5f),N(0.5f)));
+            } else { // stage 7 (복합 리듬)
+                L.Add(Pat(88,  N(0.75f),N(0.5f), N(1)));               // ♫ ♪ ♩
+                L.Add(Pat(90,  N(1),     N(0.75f),N(0.5f),N(0.5f)));
+                L.Add(Pat(92,  N(0.5f),  N(1),     N(0.75f),N(0.5f)));
+                L.Add(Pat(92,  N(0.75f), N(0.75f), N(1)));
+                L.Add(Pat(94,  N(0.5f),  N(0.5f),  N(0.75f),N(1)));
+            }
+            return L;
+
+            // 로컬 헬퍼들
+            G4RhythmCopycat.Pattern Pat(int bpm, params G4RhythmCopycat.Segment[] segs)
+                => new G4RhythmCopycat.Pattern(bpm, segs);
+            G4RhythmCopycat.Segment N(float beats) => new G4RhythmCopycat.Segment(beats, false);
+            G4RhythmCopycat.Segment R(float beats) => new G4RhythmCopycat.Segment(beats, true);
+        }
+
         // -------------- 공통 결과 처리 --------------
         void OnCommonFinished(int total, int correct, float avgMetric) {
             bool success = (total > 0) && (correct / (float)total >= clearAccuracy);
@@ -307,7 +342,7 @@ namespace AuralRehab.Application {
             _overlay?.NotifyResult(summary);
         }
 
-        // -------------- Stub (G4~G6 교체 예정) --------------
+        // -------------- Stub --------------
         void RunTwoChoiceStub(GameMode mode) {
             if (_two == null) _two = CreateTwoChoice(playArea);
             var labels = GetLabelsForMode(mode);
@@ -321,23 +356,16 @@ namespace AuralRehab.Application {
             SafeInvoke.TryCall(_two, "StartGame");
         }
         TwoChoiceMinigame CreateTwoChoice(RectTransform mount) {
-            TwoChoiceMinigame inst = null;
-            if (twoChoicePrefab != null) inst = Instantiate(twoChoicePrefab, mount);
-            else inst = mount.GetComponentInChildren<TwoChoiceMinigame>(true);
-            if (inst == null) inst = gameObject.AddComponent<TwoChoiceMinigame>();
-            return inst;
+            if (twoChoicePrefab) { var inst = Instantiate(twoChoicePrefab, mount, false); UIUtil.ApplyPrefabRect(twoChoicePrefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<TwoChoiceMinigame>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("Stub_TwoChoice", mount); return host.gameObject.AddComponent<TwoChoiceMinigame>();
         }
 
-        // -------------- Result (same scene) --------------
+        // -------------- Result --------------
         void ShowResult(GameResultBus.Summary s) {
             settingsModal?.Close();
-            if (resultOverlay != null) {
-                resultOverlay.Show(
-                    s,
-                    onExit:  OnExitToStageSelect,
-                    onRetry: OnRetry,
-                    onNext:  () => OnNext(s)
-                );
+            if (resultOverlay) {
+                resultOverlay.Show(s, onExit: OnExitToStageSelect, onRetry: OnRetry, onNext: () => OnNext(s));
             } else {
                 ServiceHub.I.Caption.ShowCenter($"정확도 {(s.correct/(float)s.totalTrials*100f):0}% • 지표 {s.avgReaction:0.00}s");
             }
@@ -377,7 +405,7 @@ namespace AuralRehab.Application {
                     return (GameMode.G1, GameMode.G2);
                 case CampaignId.B:
                     if (stage <= 4) return (GameMode.G3, GameMode.None);
-                    if (stage <= 7) return (GameMode.G4, GameMode.None);
+                    if (stage <= 7) return (GameMode.G4, GameMode.None);   // ★
                     return (GameMode.G3, GameMode.G4);
                 case CampaignId.C:
                     if (stage <= 4) return (GameMode.G5, GameMode.None);
@@ -398,63 +426,43 @@ namespace AuralRehab.Application {
             }
         }
         int GetTrials() => Mathf.Max(1, trialsPerGame);
-
         void LogDev(string msg) { if (devMode && devVerboseLog) Debug.Log($"[GameHost] {msg}"); }
 
-        // ---------- Dev Shortcuts ----------
         void Update() {
             if (!devMode) return;
-
             if (Input.GetKeyDown(KeyCode.F1)) _overlay?.ToggleVisible();
             if (Input.GetKeyDown(KeyCode.F2)) OnRetry();
             if (Input.GetKeyDown(KeyCode.F3)) { GameRouter.SelectStage(Mathf.Clamp(_stage + 1, 1, 8)); SceneManager.LoadScene(Scenes.Game); }
             if (Input.GetKeyDown(KeyCode.F4)) { GameRouter.SelectStage(Mathf.Clamp(_stage - 1, 1, 8)); SceneManager.LoadScene(Scenes.Game); }
-            if (Input.GetKeyDown(KeyCode.F5)) {
-                var next = (CampaignId)(((int)_campaign + 1) % 3);
-                GameRouter.SelectCampaign(next);
-                SceneManager.LoadScene(Scenes.Game);
-            }
-            if (Input.GetKeyDown(KeyCode.P)) {
-                if (_pausable != null) {
-                    if (_pausable.IsPaused) _pausable.Resume();
-                    else _pausable.Pause();
-                }
-            }
-            if (Input.GetKeyDown(KeyCode.BackQuote)) {
-                Time.timeScale = (Mathf.Abs(Time.timeScale - 1f) < 0.01f) ? 0.2f : 1f;
-                ServiceHub.I.Caption.ShowTop($"TimeScale {Time.timeScale:0.##}");
-            }
+            if (Input.GetKeyDown(KeyCode.F5)) { var next=(CampaignId)(((int)_campaign+1)%3); GameRouter.SelectCampaign(next); SceneManager.LoadScene(Scenes.Game); }
+            if (Input.GetKeyDown(KeyCode.P))  { if (_pausable!=null){ if (_pausable.IsPaused) _pausable.Resume(); else _pausable.Pause(); } }
+            if (Input.GetKeyDown(KeyCode.BackQuote)) { Time.timeScale = (Mathf.Abs(Time.timeScale-1f)<0.01f)?0.2f:1f; ServiceHub.I.Caption.ShowTop($"TimeScale {Time.timeScale:0.##}"); }
+
             if (Input.GetKeyDown(KeyCode.Alpha1)) ForceModeAndReload(GameMode.G1);
             if (Input.GetKeyDown(KeyCode.Alpha2)) ForceModeAndReload(GameMode.G2);
             if (Input.GetKeyDown(KeyCode.Alpha3)) ForceModeAndReload(GameMode.G3);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) ForceModeAndReload(GameMode.G4);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) ForceModeAndReload(GameMode.G4);  // ★
             if (Input.GetKeyDown(KeyCode.Alpha5)) ForceModeAndReload(GameMode.G5);
             if (Input.GetKeyDown(KeyCode.Alpha6)) ForceModeAndReload(GameMode.G6);
 
-            if (_overlay) _overlay.Tick(this, _pausable, _g1, _g2, _g3);
+            _overlay?.Tick(this, _pausable, _g1, _g2, _g3);
         }
-
-        void ForceModeAndReload(GameMode m) {
-            devOverrideRoute = true; devModeOverride = m;
-            GameRouter.SelectStage(_stage);
-            GameRouter.SelectCampaign(_campaign);
-            SceneManager.LoadScene(Scenes.Game);
-        }
+        void ForceModeAndReload(GameMode m) { devOverrideRoute=true; devModeOverride=m; GameRouter.SelectStage(_stage); GameRouter.SelectCampaign(_campaign); SceneManager.LoadScene(Scenes.Game); }
 
         // ---------- 안전 호출 유틸 ----------
         static class SafeInvoke {
             public static bool TryCall(object target, string methodName, params object[] args) {
                 if (target == null) return false;
                 var t = target.GetType();
-                var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var methods = t.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
                 foreach (var m in methods) {
                     if (m.Name != methodName) continue;
                     var ps = m.GetParameters();
                     if (ps.Length != args.Length) continue;
                     bool ok = true;
-                    for (int i = 0; i < ps.Length; i++) {
+                    for (int i=0;i<ps.Length;i++) {
                         if (args[i] == null) continue;
-                        if (!ps[i].ParameterType.IsAssignableFrom(args[i].GetType())) { ok = false; break; }
+                        if (!ps[i].ParameterType.IsAssignableFrom(args[i].GetType())) { ok=false; break; }
                     }
                     if (!ok) continue;
                     m.Invoke(target, args);
@@ -465,9 +473,9 @@ namespace AuralRehab.Application {
             public static bool TrySet(object target, string member, object value) {
                 if (target == null) return false;
                 var t = target.GetType();
-                var prop = t.GetProperty(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var prop = t.GetProperty(member, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
                 if (prop != null && prop.CanWrite) { prop.SetValue(target, value); return true; }
-                var field = t.GetField(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var field = t.GetField(member, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
                 if (field != null) { field.SetValue(target, value); return true; }
                 return false;
             }
@@ -481,13 +489,38 @@ namespace AuralRehab.Application {
             public static bool TryAssignAction(object target, string fieldOrProp, Delegate del) {
                 if (target == null) return false;
                 var t = target.GetType();
-                // Property 우선
-                var prop = t.GetProperty(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var prop = t.GetProperty(fieldOrProp, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
                 if (prop != null && prop.CanWrite) { prop.SetValue(target, del); return true; }
-                // Field
-                var field = t.GetField(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var field = t.GetField(fieldOrProp, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
                 if (field != null) { field.SetValue(target, del); return true; }
                 return false;
+            }
+        }
+
+        // ---------- UI 유틸 ----------
+        static class UIUtil {
+            public static void ApplyPrefabRect(RectTransform prefab, RectTransform inst) {
+                if (prefab == null || inst == null) return;
+                inst.anchorMin = prefab.anchorMin;
+                inst.anchorMax = prefab.anchorMax;
+                inst.pivot     = prefab.pivot;
+                inst.sizeDelta = prefab.sizeDelta;
+                inst.anchoredPosition = prefab.anchoredPosition;
+                inst.anchoredPosition3D = prefab.anchoredPosition3D;
+                inst.localRotation = prefab.localRotation;
+                inst.localScale    = prefab.localScale;
+            }
+            public static RectTransform CreateUIContainer(string name, RectTransform parent) {
+                var go = new GameObject(name, typeof(RectTransform));
+                var rt = go.GetComponent<RectTransform>();
+                rt.SetParent(parent, false);
+                rt.anchorMin = new Vector2(0.5f, 0.5f);
+                rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot     = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = Vector2.zero;
+                rt.anchoredPosition = Vector2.zero;
+                rt.localScale = Vector3.one;
+                return rt;
             }
         }
     }
