@@ -27,7 +27,9 @@ namespace AuralRehab.Application {
         [SerializeField] G1OddOneOutPitch  g1Prefab;
         [SerializeField] G2MelodyDirection g2Prefab;
         [SerializeField] G3BeatJump        g3Prefab;
-        [SerializeField] G4RhythmCopycat   g4Prefab;     // ★ 추가
+        [SerializeField] G4RhythmCopycat   g4Prefab;
+        [SerializeField] G5OddInstrument   g5Prefab;
+        [SerializeField] G6InstrumentQuiz  g6Prefab;   // ★ 추가
         [SerializeField] TwoChoiceMinigame twoChoicePrefab;
         [SerializeField] ResultOverlay     resultOverlay;
         [SerializeField] SettingsModal     settingsModal;
@@ -61,6 +63,8 @@ namespace AuralRehab.Application {
         G2MelodyDirection _g2;
         G3BeatJump        _g3;
         G4RhythmCopycat   _g4;
+        G5OddInstrument   _g5;
+        G6InstrumentQuiz  _g6;   // ★
         TwoChoiceMinigame _two;
         IPausableGame     _pausable;
         bool _gameStarted;
@@ -154,7 +158,9 @@ namespace AuralRehab.Application {
                 case GameMode.G1: RunG1(); break;
                 case GameMode.G2: RunG2(); break;
                 case GameMode.G3: RunG3(); break;
-                case GameMode.G4: RunG4(); break;   // ★ 추가
+                case GameMode.G4: RunG4(); break;
+                case GameMode.G5: RunG5(); break;
+                case GameMode.G6: RunG6(); break; // ★
                 default:          RunTwoChoiceStub(_modePrimary); break;
             }
         }
@@ -289,41 +295,162 @@ namespace AuralRehab.Application {
             var reused = mount.GetComponentInChildren<G4RhythmCopycat>(true); if (reused) return reused;
             var host = UIUtil.CreateUIContainer("G4_RhythmCopy", mount); return host.gameObject.AddComponent<G4RhythmCopycat>();
         }
-
         List<G4RhythmCopycat.Pattern> GetG4PatternsForStage(CampaignId id, int stage) {
-            // 기획 표를 코드화: ♩=1, ♪=0.5, ♫(점8분)=0.75, 𝄽(쉼표)=isRest
-            // B 캠페인 5~7 레벨
             var L = new List<G4RhythmCopycat.Pattern>();
-            if (id != CampaignId.B) { // 기본 예시
-                L.Add(Pat(80, N(1), N(0.5f), N(0.5f), N(1)));
+            if (id != CampaignId.B) {
+                L.Add(new G4RhythmCopycat.Pattern(80,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
                 return L;
             }
+
             if (stage <= 5) {
-                L.Add(Pat(80,  N(1),   N(0.5f), N(0.5f), N(1)));        // ♩ ♪♪ ♩
-                L.Add(Pat(80,  N(0.5f),N(0.5f),N(1),    N(0.5f),N(0.5f)));
-                L.Add(Pat(82,  N(1),   N(1),    N(0.5f),N(0.5f)));
-                L.Add(Pat(82,  N(0.5f),N(0.5f),N(0.5f),N(0.5f),N(1)));
-                L.Add(Pat(84,  N(1),   N(0.5f),N(0.5f),N(0.5f),N(0.5f)));
+                L.Add(new G4RhythmCopycat.Pattern(80,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(80,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+                L.Add(new G4RhythmCopycat.Pattern(82,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+                L.Add(new G4RhythmCopycat.Pattern(82,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(84,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
             } else if (stage <= 6) {
-                L.Add(Pat(80,  N(1),   R(1),    N(1)));                 // ♩ 𝄽 ♩
-                L.Add(Pat(82,  N(0.5f),N(0.5f),R(1),    N(0.5f),N(0.5f)));
-                L.Add(Pat(84,  N(1),   R(1),    N(0.5f),N(0.5f),N(1)));
-                L.Add(Pat(84,  N(0.5f),N(0.5f),N(1),    R(1),    N(1)));
-                L.Add(Pat(86,  N(1),   N(0.5f),N(0.5f),R(1),    N(0.5f),N(0.5f)));
-            } else { // stage 7 (복합 리듬)
-                L.Add(Pat(88,  N(0.75f),N(0.5f), N(1)));               // ♫ ♪ ♩
-                L.Add(Pat(90,  N(1),     N(0.75f),N(0.5f),N(0.5f)));
-                L.Add(Pat(92,  N(0.5f),  N(1),     N(0.75f),N(0.5f)));
-                L.Add(Pat(92,  N(0.75f), N(0.75f), N(1)));
-                L.Add(Pat(94,  N(0.5f),  N(0.5f),  N(0.75f),N(1)));
+                L.Add(new G4RhythmCopycat.Pattern(80,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(1,true),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(82,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,true),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+                L.Add(new G4RhythmCopycat.Pattern(84,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(1,true),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(84,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(1,true),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(86,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,true),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+            } else { // stage 7
+                L.Add(new G4RhythmCopycat.Pattern(88,
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(90,
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+                L.Add(new G4RhythmCopycat.Pattern(92,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(1,false),
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false)));
+                L.Add(new G4RhythmCopycat.Pattern(92,
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
+                L.Add(new G4RhythmCopycat.Pattern(94,
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.5f,false),
+                    new G4RhythmCopycat.Segment(0.75f,false),
+                    new G4RhythmCopycat.Segment(1,false)));
             }
             return L;
+        }
 
-            // 로컬 헬퍼들
-            G4RhythmCopycat.Pattern Pat(int bpm, params G4RhythmCopycat.Segment[] segs)
-                => new G4RhythmCopycat.Pattern(bpm, segs);
-            G4RhythmCopycat.Segment N(float beats) => new G4RhythmCopycat.Segment(beats, false);
-            G4RhythmCopycat.Segment R(float beats) => new G4RhythmCopycat.Segment(beats, true);
+        // ---------------- G5 ----------------
+        void RunG5() {
+            if (_g5 == null) _g5 = CreateG5(playArea);
+
+            var rule = GetG5RuleForStage(_campaign, _stage);
+            _g5.ConfigureStageRule(rule);
+            _g5.SetUseUnscaledTime(true);
+            _g5.SetTotalTrials(GetTrials());
+
+            _pausable = _g5;
+            _g5.OnGameFinished = OnCommonFinished;
+
+            ServiceHub.I.Caption.ShowTop("프리뷰를 듣고, 다른 소리를 고르세요.");
+            _g5.gameObject.SetActive(true);
+            _g5.StartGame();
+        }
+        G5OddInstrument CreateG5(RectTransform mount) {
+            if (g5Prefab) { var inst = Instantiate(g5Prefab, mount, false); UIUtil.ApplyPrefabRect(g5Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G5OddInstrument>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G5_OddInstrument", mount); return host.gameObject.AddComponent<G5OddInstrument>();
+        }
+        G5OddInstrument.StageRule GetG5RuleForStage(CampaignId id, int stage) {
+            if (id != CampaignId.C) return G5OddInstrument.StageRule.BroadFamily;
+            if (stage <= 4) return G5OddInstrument.StageRule.BroadFamily;
+            if (stage <= 6) return G5OddInstrument.StageRule.WindsSplit;
+            if (stage == 7)  return G5OddInstrument.StageRule.SimilarWithinGroup;
+            return G5OddInstrument.StageRule.CultureSplit;
+        }
+
+        // ---------------- G6 ----------------
+        void RunG6() {
+            if (_g6 == null) _g6 = CreateG6(playArea);
+
+            int choices; G6InstrumentQuiz.CultureMix mix;
+            GetG6StageConfig(_campaign, _stage, out choices, out mix);
+
+            _g6.ConfigureStage(choices, mix);
+            _g6.SetUseUnscaledTime(true);
+            _g6.SetTotalTrials(GetTrials());
+            SafeInvoke.TryAssignAction(_g6, "OnGameFinished", new Action<int,int,float>(OnCommonFinished));
+
+            _pausable = _g6;
+            ServiceHub.I.Caption.ShowTop("소리를 듣고 해당 악기를 맞히세요.");
+            _g6.gameObject.SetActive(true);
+            _g6.StartGame();
+        }
+        G6InstrumentQuiz CreateG6(RectTransform mount) {
+            if (g6Prefab) { var inst = Instantiate(g6Prefab, mount, false); UIUtil.ApplyPrefabRect(g6Prefab.GetComponent<RectTransform>(), inst.GetComponent<RectTransform>()); return inst; }
+            var reused = mount.GetComponentInChildren<G6InstrumentQuiz>(true); if (reused) return reused;
+            var host = UIUtil.CreateUIContainer("G6_InstrumentQuiz", mount); return host.gameObject.AddComponent<G6InstrumentQuiz>();
+        }
+        void GetG6StageConfig(CampaignId id, int stage, out int choices, out G6InstrumentQuiz.CultureMix mix) {
+            // C 캠페인 전용 맵핑(기획 초안에 맞춘 기본값)
+            if (id != CampaignId.C) { choices = 4; mix = G6InstrumentQuiz.CultureMix.Mixed; return; }
+            if (stage <= 5) { choices = 4;  mix = G6InstrumentQuiz.CultureMix.WesternOnly; }
+            else if (stage == 6) { choices = 6; mix = G6InstrumentQuiz.CultureMix.Mixed; }
+            else if (stage == 7) { choices = 8; mix = G6InstrumentQuiz.CultureMix.IncludeKoreanPriority; }
+            else /*stage 8*/ { choices = 10; mix = G6InstrumentQuiz.CultureMix.All; }
         }
 
         // -------------- 공통 결과 처리 --------------
@@ -342,7 +469,7 @@ namespace AuralRehab.Application {
             _overlay?.NotifyResult(summary);
         }
 
-        // -------------- Stub --------------
+        // -------------- Stub for Others --------------
         void RunTwoChoiceStub(GameMode mode) {
             if (_two == null) _two = CreateTwoChoice(playArea);
             var labels = GetLabelsForMode(mode);
@@ -405,7 +532,7 @@ namespace AuralRehab.Application {
                     return (GameMode.G1, GameMode.G2);
                 case CampaignId.B:
                     if (stage <= 4) return (GameMode.G3, GameMode.None);
-                    if (stage <= 7) return (GameMode.G4, GameMode.None);   // ★
+                    if (stage <= 7) return (GameMode.G4, GameMode.None);
                     return (GameMode.G3, GameMode.G4);
                 case CampaignId.C:
                     if (stage <= 4) return (GameMode.G5, GameMode.None);
@@ -420,7 +547,7 @@ namespace AuralRehab.Application {
                 case GameMode.G2: return ("상승", "하강", "멜로디의 방향을 고르세요");
                 case GameMode.G3: return ("정박", "비정박", "리듬을 구분하세요");
                 case GameMode.G4: return ("패턴A", "패턴B", "리듬 패턴을 구분하세요");
-                case GameMode.G5: return ("악기1", "악기2", "다른 악기를 고르세요");
+                case GameMode.G5: return ("A", "B", "다른 소리를 고르세요");
                 case GameMode.G6: return ("정답", "오답", "악기 소리를 맞히세요");
                 default:          return ("A", "B", "정답을 고르세요");
             }
@@ -441,7 +568,7 @@ namespace AuralRehab.Application {
             if (Input.GetKeyDown(KeyCode.Alpha1)) ForceModeAndReload(GameMode.G1);
             if (Input.GetKeyDown(KeyCode.Alpha2)) ForceModeAndReload(GameMode.G2);
             if (Input.GetKeyDown(KeyCode.Alpha3)) ForceModeAndReload(GameMode.G3);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) ForceModeAndReload(GameMode.G4);  // ★
+            if (Input.GetKeyDown(KeyCode.Alpha4)) ForceModeAndReload(GameMode.G4);
             if (Input.GetKeyDown(KeyCode.Alpha5)) ForceModeAndReload(GameMode.G5);
             if (Input.GetKeyDown(KeyCode.Alpha6)) ForceModeAndReload(GameMode.G6);
 
@@ -454,7 +581,7 @@ namespace AuralRehab.Application {
             public static bool TryCall(object target, string methodName, params object[] args) {
                 if (target == null) return false;
                 var t = target.GetType();
-                var methods = t.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
+                var methods = t.GetMethods(System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
                 foreach (var m in methods) {
                     if (m.Name != methodName) continue;
                     var ps = m.GetParameters();
@@ -489,10 +616,10 @@ namespace AuralRehab.Application {
             public static bool TryAssignAction(object target, string fieldOrProp, Delegate del) {
                 if (target == null) return false;
                 var t = target.GetType();
-                var prop = t.GetProperty(fieldOrProp, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
-                if (prop != null && prop.CanWrite) { prop.SetValue(target, del); return true; }
-                var field = t.GetField(fieldOrProp, BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance);
-                if (field != null) { field.SetValue(target, del); return true; }
+                var prop = t.GetProperty(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (prop != null && prop.CanWrite && prop.PropertyType.IsAssignableFrom(del.GetType())) { prop.SetValue(target, del); return true; }
+                var field = t.GetField(fieldOrProp, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null && field.FieldType.IsAssignableFrom(del.GetType())) { field.SetValue(target, del); return true; }
                 return false;
             }
         }
